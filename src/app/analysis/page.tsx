@@ -4,7 +4,9 @@ import { useState, useEffect } from 'react';
 
 export default function AnalysisPage() {
   const [analysis, setAnalysis] = useState<any>(null);
+  const [predictions, setPredictions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isPredicting, setIsPredicting] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -25,7 +27,22 @@ export default function AnalysisPage() {
       }
     }
 
+    async function fetchPredictions() {
+      try {
+        const res = await fetch('/api/analysis/predictive');
+        const data = await res.json();
+        if (data.success) {
+          setPredictions(data.predictions);
+        }
+      } catch (err) {
+        console.error('Failed to fetch predictions', err);
+      } finally {
+        setIsPredicting(false);
+      }
+    }
+
     fetchAnalysis();
+    fetchPredictions();
   }, []);
 
   if (isLoading) {
@@ -122,6 +139,43 @@ export default function AnalysisPage() {
                 ))}
               </ul>
             </div>
+          </div>
+
+          {/* Predictive AI Section */}
+          <div className="col-span-3 glass-card" style={{ borderTop: '4px solid rgb(var(--primary))' }}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-[rgb(var(--primary))]">🔮 Prediksi Kehabisan Stok (AI)</h3>
+              {isPredicting && <span className="text-muted text-sm animate-pulse">Memproses 30 hari data terakhir...</span>}
+            </div>
+            
+            {!isPredicting && predictions.length === 0 ? (
+              <p className="text-muted text-sm text-center p-4">Belum ada cukup data penjualan 30 hari terakhir untuk diprediksi.</p>
+            ) : !isPredicting && predictions.length > 0 ? (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+                  <thead>
+                    <tr style={{ background: 'rgba(var(--surface-hover), 0.3)' }}>
+                      <th style={{ padding: '0.75rem' }}>Produk</th>
+                      <th style={{ padding: '0.75rem', textAlign: 'center' }}>Kecepatan Laku (Hari)</th>
+                      <th style={{ padding: '0.75rem', textAlign: 'center' }}>Sisa Hari (Estimasi)</th>
+                      <th style={{ padding: '0.75rem' }}>Rekomendasi AI</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {predictions.map((p, idx) => (
+                      <tr key={p.id} style={{ borderBottom: '1px solid rgba(var(--border), 0.2)' }}>
+                        <td style={{ padding: '0.75rem', fontWeight: 500 }}>{p.name}</td>
+                        <td style={{ padding: '0.75rem', textAlign: 'center' }}>~{p.velocityPerDay.toFixed(1)} pcs</td>
+                        <td style={{ padding: '0.75rem', textAlign: 'center', fontWeight: 'bold', color: p.estimatedDaysLeft < 7 ? 'rgb(var(--danger))' : p.estimatedDaysLeft < 14 ? 'rgb(var(--warning))' : 'rgb(var(--success))' }}>
+                          {p.estimatedDaysLeft > 365 ? '> 1 Tahun' : `${Math.round(p.estimatedDaysLeft)} Hari`}
+                        </td>
+                        <td style={{ padding: '0.75rem' }} className="text-muted">{p.recommendation}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
           </div>
         </div>
       )}

@@ -58,8 +58,8 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-140px)] gap-4 w-full max-w-4xl mx-auto">
-      <div className="flex justify-between items-center">
+    <div className="flex flex-col gap-4 w-full max-w-4xl mx-auto" style={{ height: 'calc(100vh - 160px)', minHeight: '400px' }}>
+      <div className="flex justify-between items-center mobile-hidden">
         <div>
           <h1>AI Assistant</h1>
           <p className="text-muted">Asisten pintar untuk mengelola SCM Kaos Kami.</p>
@@ -98,17 +98,17 @@ export default function ChatPage() {
         </div>
 
         {/* Input Form */}
-        <form onSubmit={handleSend} style={{ display: 'flex', gap: '1rem', padding: '1rem', borderTop: '1px solid rgba(var(--border), 0.5)', background: 'rgba(var(--surface), 0.9)' }}>
+        <form onSubmit={handleSend} style={{ display: 'flex', gap: '0.5rem', padding: '0.75rem', borderTop: '1px solid rgba(var(--border), 0.5)', background: 'rgba(var(--surface), 0.9)' }} className="mobile-gap-2">
           <input 
             type="text" 
-            className="input-field" 
-            placeholder="Tanya stok, minta analisa, atau laporkan penjualan..." 
+            className="input-field touch-target" 
+            placeholder="Tanya stok, analisa..." 
             value={input}
             onChange={e => setInput(e.target.value)}
             disabled={isLoading}
-            style={{ flex: 1 }}
+            style={{ flex: 1, padding: '0.75rem 1rem' }}
           />
-          <button type="submit" className="btn btn-primary" style={{ padding: '0 1.5rem' }} disabled={isLoading || !input.trim()}>
+          <button type="submit" className="btn btn-primary touch-target" style={{ padding: '0 1.25rem' }} disabled={isLoading || !input.trim()}>
             Kirim
           </button>
         </form>

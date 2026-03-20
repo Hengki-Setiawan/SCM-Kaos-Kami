@@ -37,21 +37,21 @@ export default function OrderListClient({ initialOrders }: { initialOrders: any[
   return (
     <div className="flex flex-col gap-4">
       {/* Tabs */}
-      <div className="flex gap-2 border-b border-[rgba(var(--border),0.5)] pb-2 overflow-x-auto">
+      <div className="flex gap-2 border-b border-[rgba(var(--border),0.5)] pb-2 overflow-x-auto mobile-scroll-x">
         {tabs.map(tab => (
           <button 
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`btn ${activeTab === tab ? 'btn-primary' : 'btn-outline'}`}
-            style={{ textTransform: 'capitalize' }}
+            className={`btn touch-target ${activeTab === tab ? 'btn-primary' : 'btn-outline'}`}
+            style={{ textTransform: 'capitalize', whiteSpace: 'nowrap' }}
           >
             {tab}
           </button>
         ))}
       </div>
 
-      {/* Table */}
-      <div className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
+      {/* Desktop Table View */}
+      <div className="glass-card desktop-only-table mobile-hidden" style={{ padding: 0, overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
@@ -100,6 +100,46 @@ export default function OrderListClient({ initialOrders }: { initialOrders: any[
           </table>
         </div>
       </div>
+
+      {/* Mobile Card List View */}
+      <div className="mobile-card-list desktop-hidden">
+        {filteredOrders.length === 0 ? (
+          <div className="text-center text-muted p-4">Tidak ada pesanan ditemukan.</div>
+        ) : (
+          filteredOrders.map(order => (
+            <div key={order.id} className="mobile-card-item">
+              <div className="flex justify-between items-start mb-2">
+                <div className="flex flex-col">
+                  <span style={{ fontWeight: 600, fontSize: '1.1rem' }}>{order.orderNumber}</span>
+                  <span className="text-muted" style={{ fontSize: '0.875rem' }}>{order.customerName}</span>
+                </div>
+                <div>{getStatusBadge(order.status)}</div>
+              </div>
+              
+              <div className="flex justify-between items-center text-sm pt-2" style={{ borderTop: '1px dotted rgba(var(--border), 0.5)' }}>
+                <span className="text-muted" style={{ textTransform: 'capitalize' }}>Platform: {order.platform}</span>
+                <span style={{ fontWeight: 600 }}>{order.totalPrice ? `Rp ${order.totalPrice.toLocaleString('id-ID')}` : '-'}</span>
+              </div>
+              
+              <div className="mt-3 pt-3" style={{ borderTop: '1px solid rgba(var(--border), 0.3)' }}>
+                <select 
+                  className="input-field touch-target" 
+                  style={{ width: '100%', padding: '0.5rem' }}
+                  value={order.status}
+                  onChange={(e) => handleStatusChange(order.id, e.target.value)}
+                >
+                  <option value="pending">⏳ Pending</option>
+                  <option value="processing">⚙️ Processing</option>
+                  <option value="shipped">📦 Shipped</option>
+                  <option value="completed">✅ Completed</option>
+                  <option value="cancelled">❌ Cancelled</option>
+                </select>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
     </div>
   );
 }

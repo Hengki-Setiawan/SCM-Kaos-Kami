@@ -12,14 +12,17 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "@ducanh2912/next-pwa": "^10.2.9",
     "@libsql/client": "^0.15.8",
     "cloudinary": "^2.6.1",
     "drizzle-orm": "^0.44.2",
     "grammy": "^1.36.3",
     "groq-sdk": "^0.18.0",
     "next": "16.2.0",
+    "next-pwa": "^5.6.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "swr": "^2.4.1",
     "uuid": "^11.1.0"
   },
   "devDependencies": {

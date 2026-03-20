@@ -1,16 +1,31 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import useSWR from 'swr';
 import { updateStock, updateMinStock } from '../actions/stock';
+
+const fetcher = (url: string) => fetch(url).then(res => res.json()).then(res => res.data);
 
 export default function StockTableClient({ initialProducts, categories }: { initialProducts: any[], categories: any[] }) {
   const [activeCategory, setActiveCategory] = useState<string>(categories[0]?.id || '');
   const [searchQuery, setSearchQuery] = useState('');
   
+  const { data: serverProducts } = useSWR('/api/stock', fetcher, {
+    fallbackData: initialProducts,
+    refreshInterval: 5000,
+  });
+
   // Local state for optimistic UI updates
   const [products, setProducts] = useState(initialProducts);
 
-  const filteredProducts = products.filter(p => {
+  // Sync server products to local state when they change, but only if we're not actively editing
+  useEffect(() => {
+    if (serverProducts) {
+      setProducts(serverProducts);
+    }
+  }, [serverProducts]);
+
+  const filteredProducts = products.filter((p: any) => {
     const matchesCategory = p.categoryId === activeCategory;
     const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           p.sku.toLowerCase().includes(searchQuery.toLowerCase());
@@ -56,21 +71,29 @@ export default function StockTableClient({ initialProducts, categories }: { init
   return (
     <div className="flex flex-col gap-4">
       {/* Search & Tabs */}
-      <div className="flex gap-4 items-center">
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center gap-2 mb-2">
+          {/* Live indicator dot */}
+          <span className="flex h-3 w-3 relative" title="Live Sync Active">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[rgb(var(--success))] opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-3 w-3 bg-[rgb(var(--success))]"></span>
+          </span>
+          <span className="text-xs text-muted">Auto-sync aktif</span>
+        </div>
         <input 
           type="text" 
           placeholder="Cari SKU, Nama Produk..." 
-          className="input-field" 
-          style={{ maxWidth: '300px' }}
+          className="input-field touch-target" 
+          style={{ width: '100%' }}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
-        <div className="flex gap-2 overflow-x-auto pb-2" style={{ flex: 1 }}>
+        <div className="flex gap-2 overflow-x-auto pb-2 mobile-scroll-x" style={{ flex: 1 }}>
           {categories.map(cat => (
             <button
               key={cat.id}
               onClick={() => setActiveCategory(cat.id)}
-              className={`btn ${activeCategory === cat.id ? 'btn-primary' : 'btn-outline'}`}
+              className={`btn touch-target ${activeCategory === cat.id ? 'btn-primary' : 'btn-outline'}`}
               style={{ whiteSpace: 'nowrap' }}
             >
               <span style={{ marginRight: '0.5rem' }}>{cat.icon}</span> {cat.name}
@@ -79,8 +102,8 @@ export default function StockTableClient({ initialProducts, categories }: { init
         </div>
       </div>
 
-      {/* Main Table */}
-      <div className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
+      {/* Desktop Table View */}
+      <div className="glass-card desktop-only-table mobile-hidden" style={{ padding: 0, overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
@@ -148,6 +171,55 @@ export default function StockTableClient({ initialProducts, categories }: { init
           </table>
         </div>
       </div>
+
+      {/* Mobile Card List View */}
+      <div className="mobile-card-list desktop-hidden">
+        {filteredProducts.length === 0 ? (
+          <div className="text-center text-muted p-4">Tidak ada produk ditemukan.</div>
+        ) : (
+          filteredProducts.map(product => {
+            const isLowStock = product.currentStock <= product.minStock;
+            return (
+              <div key={product.id} className="mobile-card-item">
+                <div className="flex justify-between items-start">
+                  <div className="flex flex-col">
+                    <span style={{ fontWeight: 600 }}>{product.name}</span>
+                    <span style={{ fontSize: '0.75rem' }} className="text-muted">{product.sku}</span>
+                    {product.color && <span style={{ fontSize: '0.75rem' }} className="text-muted mt-1">{product.color} • {product.size}</span>}
+                  </div>
+                  <div>
+                    {isLowStock ? <span className="badge badge-warning">Rendah</span> : <span className="badge badge-success">Aman</span>}
+                  </div>
+                </div>
+                
+                <div className="flex items-center justify-between gap-4 mt-2 pt-3" style={{ borderTop: '1px solid rgba(var(--border), 0.3)' }}>
+                  <div className="flex flex-col gap-1 w-full">
+                    <span style={{ fontSize: '0.75rem' }} className="text-muted">Stok Aktual</span>
+                    <div className="flex items-center gap-2">
+                       <input 
+                         type="number" 
+                         defaultValue={product.currentStock}
+                         className="input-field touch-target"
+                         style={{ padding: '0.5rem', flex: 1 }}
+                         onBlur={(e) => handleStockChange(product.id, parseInt(e.target.value) || 0, product.currentStock)}
+                       />
+                       <span style={{ opacity: 0.5 }}>/</span>
+                       <input 
+                         type="number" 
+                         defaultValue={product.minStock}
+                         className="input-field touch-target"
+                         style={{ padding: '0.5rem', width: '70px' }}
+                         onBlur={(e) => handleMinStockChange(product.id, parseInt(e.target.value) || 0, product.minStock)}
+                       />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
     </div>
   );
 }

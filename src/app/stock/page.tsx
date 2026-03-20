@@ -24,14 +24,19 @@ export default async function StockPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex justify-between items-start mobile-col mobile-gap-2 mb-4">
         <div>
           <h1>Manajemen Stok</h1>
           <p className="text-muted">Kelola dan pantau stok dari semua kategori.</p>
         </div>
-        <div className="flex gap-2">
-          <button className="btn btn-primary">+ Tambah Produk</button>
-          <button className="btn btn-outline">Restock Cepat</button>
+        <div className="flex gap-2 mobile-col" style={{ width: '100%' }}>
+          <button className="btn btn-primary touch-target" style={{ flex: 1 }}>+ Tambah Produk</button>
+          <div className="flex gap-2 mobile-col" style={{ flex: 1 }}>
+            <button className="btn btn-outline touch-target" style={{ flex: 1 }}>Restock Cepat</button>
+            <a href="/restock/po" target="_blank" className="btn btn-outline touch-target" style={{ flex: 1, borderColor: 'rgb(var(--primary))', color: 'rgb(var(--primary))' }}>
+              📄 Isi PO
+            </a>
+          </div>
         </div>
       </div>
 
