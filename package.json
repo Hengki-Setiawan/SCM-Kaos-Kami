@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:generate": "drizzle-kit generate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
     "next": "16.2.0",
@@ -14,11 +17,14 @@
     "react-dom": "19.2.4"
   },
   "devDependencies": {
-    "@types/node": "^20",
-    "@types/react": "^19",
+    "@types/node": "^20.19.37",
+    "@types/react": "^19.2.14",
     "@types/react-dom": "^19",
+    "dotenv": "^17.3.1",
+    "drizzle-kit": "^0.31.10",
     "eslint": "^9",
     "eslint-config-next": "16.2.0",
-    "typescript": "^5"
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
   }
 }
