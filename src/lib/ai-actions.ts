@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
-export async function parseAndExecuteAIAction(text: string, source: 'web' | 'telegram') {
+export async function parseAndExecuteAIAction(text: string, source: 'web' | 'telegram', contextMessages: any[] = []) {
   try {
     const systemPrompt = `
       Anda adalah "Action Parser" untuk sistem SCM Kaos Kami.
@@ -29,6 +29,9 @@ export async function parseAndExecuteAIAction(text: string, source: 'web' | 'tel
       Output JSON: {"action": "UPDATE_STOCK", "sku": "kaos putih M", "qty": 15, "reason": "Koreksi manual"}
       
       Pesan User: "${text}"
+      
+      Konteks Chat Sebelumnya (Gunakan ini jika User tidak menyebut nama barang secara spesifik): 
+      ${JSON.stringify(contextMessages.slice(-5))}
     `;
 
     const completion = await groq.chat.completions.create({
@@ -51,10 +54,11 @@ export async function parseAndExecuteAIAction(text: string, source: 'web' | 'tel
     );
 
     if (!p) {
-      return `❌ Gagal mengeksekusi aksi. Produk yang mirip dengan '${intent.sku}' tidak ditemukan.`;
+      return { message: `❌ Gagal mengeksekusi aksi. Produk yang mirip dengan '${intent.sku}' tidak ditemukan.` };
     }
 
     let summary = `✅ Berhasil eksekusi perintah!\n*Produk Utama:* ${p.name}\n`;
+    const undoToken = uuidv4();
 
     // Aksi Single Produk (Add/Update/Deduct Biasa)
     if (['DEDUCT_STOCK', 'ADD_STOCK', 'UPDATE_STOCK'].includes(intent.action)) {
@@ -72,7 +76,8 @@ export async function parseAndExecuteAIAction(text: string, source: 'web' | 'tel
        
        if (diff > 0) {
          await db.insert(stockMovements).values({
-           id: uuidv4(), productId: p.id, type: moveType, quantity: diff, reason: intent.reason || `AI Action (${source})`, createdBy: `ai_${source}`
+           id: uuidv4(), productId: p.id, type: moveType, quantity: diff, reason: intent.reason || `AI Action (${source})`, createdBy: `ai_${source}`,
+           undoToken: undoToken, canBeUndone: true
          });
        }
        summary += `Sisa Stok: ${newStock} pcs\n`;
@@ -85,7 +90,8 @@ export async function parseAndExecuteAIAction(text: string, source: 'web' | 'tel
        
        await db.update(products).set({ currentStock: newStock }).where(eq(products.id, p.id));
        await db.insert(stockMovements).values({
-         id: uuidv4(), productId: p.id, type: 'OUT', quantity: qtyOrder, reason: 'Pengiriman via AI Chat', createdBy: `ai_${source}`
+         id: uuidv4(), productId: p.id, type: 'OUT', quantity: qtyOrder, reason: 'Pengiriman via AI Chat', createdBy: `ai_${source}`,
+         undoToken: undoToken, canBeUndone: true
        });
        summary += `Produk -${qtyOrder} (Sisa ${newStock})\n\n📦 *Auto Deduct Packaging:*\n`;
 
@@ -104,7 +110,8 @@ export async function parseAndExecuteAIAction(text: string, source: 'web' | 'tel
                   
                   await db.update(products).set({ currentStock: newPackStock }).where(eq(products.id, packProd.id));
                   await db.insert(stockMovements).values({
-                    id: uuidv4(), productId: packProd.id, type: 'OUT', quantity: dedQty, reason: `Auto Deduct ${rule.name}`, createdBy: `ai_auto`
+                    id: uuidv4(), productId: packProd.id, type: 'OUT', quantity: dedQty, reason: `Auto Deduct ${rule.name}`, createdBy: `ai_auto`,
+                    undoToken: undoToken, canBeUndone: true
                   });
 
                   summary += `• ${packProd.name}: -${dedQty} (Sisa ${newPackStock})\n`;
@@ -119,7 +126,7 @@ export async function parseAndExecuteAIAction(text: string, source: 'web' | 'tel
        }
     }
 
-    return summary;
+    return { message: summary, undoToken };
 
   } catch (error) {
     console.error('AI Action Parse Error:', error);

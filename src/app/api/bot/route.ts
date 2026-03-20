@@ -1,6 +1,6 @@
-import { Bot, webhookCallback, InlineKeyboard, Keyboard } from 'grammy';
+import { Bot, webhookCallback, InlineKeyboard, Keyboard, InputFile } from 'grammy';
 import { db } from '@/db';
-import { products, orders, stockMovements, categories } from '@/db/schema';
+import { products, orders, stockMovements, categories, telegramUsers } from '@/db/schema';
 import { desc, eq, sql, lte } from 'drizzle-orm';
 import { Groq } from 'groq-sdk';
 import { v4 as uuidv4 } from 'uuid';
@@ -9,10 +9,15 @@ const bot = new Bot(process.env.TELEGRAM_BOT_TOKEN as string);
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 // ==================== SESSION STATE ====================
-const sessions = new Map<number, { pendingAction?: any; lastCategory?: string; lastQuery?: string }>();
+const sessions = new Map<number, { 
+  pendingAction?: any; 
+  lastCategory?: string; 
+  lastQuery?: string;
+  contextMessages: {role: 'user' | 'assistant' | 'system', content: string}[];
+}>();
 
 function getSession(chatId: number) {
-  if (!sessions.has(chatId)) sessions.set(chatId, {});
+  if (!sessions.has(chatId)) sessions.set(chatId, { contextMessages: [] });
   return sessions.get(chatId)!;
 }
 
@@ -26,16 +31,31 @@ const mainMenu = new Keyboard()
 const menuLain = new Keyboard()
   .text('🧮 Kalkulator').text('📜 Riwayat').row()
   .text('📸 Scan Resi').text('🔍 Cari Produk').row()
+  .webApp('🌐 Buka Dashboard', process.env.NEXT_PUBLIC_APP_URL || 'https://scm-kaos-kami.vercel.app').row()
   .text('🏠 Menu Utama').row()
   .resized().persistent();
 
-// ==================== SECURITY MIDDLEWARE ====================
+// ==================== SECURITY MIDDLEWARE (ROLE MANAGEMENT) ====================
 bot.use(async (ctx, next) => {
-  const username = ctx.from?.username;
-  if (username !== process.env.TELEGRAM_USERNAME?.replace('@', '')) {
-    await ctx.reply('🚫 Akses ditolak. Bot ini hanya untuk admin Kaos Kami.');
+  const tId = ctx.from?.id.toString() || '';
+  const username = ctx.from?.username || '';
+  
+  // Super Admin bypass via ENV
+  const isSuperAdmin = username === process.env.TELEGRAM_USERNAME?.replace('@', '');
+  
+  // Check against DB
+  const userDb = await db.select().from(telegramUsers).where(eq(telegramUsers.telegramId, tId));
+  const isRegistered = userDb.length > 0 && userDb[0].isActive;
+
+  if (!isSuperAdmin && !isRegistered) {
+    await ctx.reply(`🚫 Akses ditolak. Bot SCM Kaos Kami hanya untuk karyawan terdaftar.\nID Telegram Anda: \`${tId}\`\nBerikan ID ini ke admin jika Anda adalah staff.`, { parse_mode: 'Markdown' });
     return;
   }
+
+  // Inject role to context state
+  (ctx as any).session = (ctx as any).session || {};
+  (ctx as any).session.role = isSuperAdmin ? 'admin' : userDb[0].role;
+  
   await next();
 });
 
@@ -178,6 +198,10 @@ bot.hears('📋 Pesanan', async (ctx) => {
 
 // ==================== 📈 LAPORAN ====================
 bot.hears('📈 Laporan', async (ctx) => {
+  if ((ctx as any).session?.role !== 'admin') {
+    return ctx.reply('🚫 Fitur Laporan hanya dapat diakses oleh Admin.');
+  }
+
   try {
     const stats = await db.select({
       total: sql<number>`count(${products.id})`,
@@ -202,9 +226,13 @@ bot.hears('📈 Laporan', async (ctx) => {
 
     const keyboard = new InlineKeyboard()
       .text('⚠️ Lihat Low Stock', 'btn_lowstock')
-      .text('📋 Lihat Pesanan', 'btn_orders');
+      .text('📋 Lihat Pesanan', 'btn_orders').row()
+      .text('📄 Download CSV', 'btn_csv');
 
-    await ctx.reply(msg, { parse_mode: 'Markdown', reply_markup: keyboard });
+    // Generate QuickChart URL
+    const chartUrl = `https://quickchart.io/chart?c={type:'doughnut',data:{labels:['Aman','Low Stock'],datasets:[{data:[${s.total - s.lowCount},${s.lowCount}],backgroundColor:['%2310b981','%23ef4444']}]}}`;
+
+    await ctx.replyWithPhoto(chartUrl, { caption: msg, parse_mode: 'Markdown', reply_markup: keyboard });
   } catch (e) {
     await ctx.reply('❌ Gagal membuat laporan.');
   }
@@ -234,6 +262,23 @@ bot.callbackQuery('btn_orders', async (ctx) => {
   const si: Record<string, string> = { pending: '🟡', processing: '🔵', shipped: '📦', completed: '✅', cancelled: '❌' };
   recent.forEach(o => { msg += `${si[o.status] || '⚪'} #${o.orderNumber} — ${o.customerName} (*${o.status}*)\n`; });
   await ctx.reply(msg, { parse_mode: 'Markdown' });
+});
+
+bot.callbackQuery('btn_csv', async (ctx) => {
+  if ((ctx as any).session?.role !== 'admin') return ctx.answerCallbackQuery('🚫 Akses ditolak');
+  
+  await ctx.answerCallbackQuery('Membuat CSV...');
+  try {
+    const all = await db.select().from(products);
+    let csv = 'SKU,Nama,Kategori,Harga Beli,Harga Jual,Stok Saat Ini,Min Stok\\n';
+    all.forEach(p => { csv += `"${p.sku}","${p.name}","${p.categoryId}",${p.buyPrice || 0},${p.unitPrice || 0},${p.currentStock},${p.minStock}\\n`; });
+    
+    const buffer = Buffer.from(csv, 'utf-8');
+    const d = new Date().toISOString().split('T')[0];
+    await ctx.replyWithDocument(new InputFile(buffer, `Laporan_Stok_${d}.csv`));
+  } catch (e) {
+    await ctx.reply('❌ Gagal menggenerate CSV.');
+  }
 });
 
 // ==================== ⚙️ MENU LAIN ====================
@@ -297,7 +342,7 @@ bot.on('message:photo', async (ctx) => {
       messages: [{
         role: "user",
         content: [
-          { type: "text", text: `Analisis gambar ini. Jika ini resi pengiriman, extract JSON: {"type":"resi","customerName":"...","trackingNumber":"...","platform":"..."}. Jika ini nota pembelian, extract: {"type":"nota","items":"deskripsi item","total":"total harga"}. Jika bukan keduanya: {"type":"unknown","description":"deskripsi singkat"}` },
+          { type: "text", text: `Analisis gambar ini. Jika ini resi pengiriman, extract JSON: {"type":"resi","customerName":"...","trackingNumber":"...","platform":"..."}. Jika ini nota pembelian, extract: {"type":"nota","items":"deskripsi item","total":"total harga"}. Jika ini foto barcode atau label produk, extract: {"type":"barcode","sku":"kode yang terbaca"}. Jika bukan ketiganya: {"type":"unknown","description":"deskripsi singkat"}` },
           { type: "image_url", image_url: { url: imageUrl } },
         ],
       }],
@@ -323,11 +368,52 @@ bot.on('message:photo', async (ctx) => {
         `💰 Total: ${parsed.total || '-'}`,
         { parse_mode: 'Markdown' }
       );
+    } else if (parsed.type === 'barcode' && parsed.sku) {
+      await ctx.reply(`📷 *Barcode Terdeteksi: \`${parsed.sku}\`*\nMencari stok gudang...`, { parse_mode: 'Markdown' });
+      // Redirect to search logic
+      const session = getSession(ctx.chat?.id || 0);
+      session.lastQuery = 'SEARCH_MODE';
+      ctx.message.text = parsed.sku;
+      bot.handleUpdate(ctx.update);
     } else {
       await ctx.reply(`📷 Gambar dikenali: ${parsed.description || 'Tidak dapat diidentifikasi sebagai resi/nota.'}`);
     }
   } catch (error) {
     await ctx.reply('❌ Gagal menganalisis gambar.');
+  }
+});
+
+// ==================== 🎙️ VOICE COMMAND (Whisper) ====================
+bot.on('message:voice', async (ctx) => {
+  try {
+    await ctx.reply('🎙️ Mendengarkan Voice Note...');
+    const file = await ctx.api.getFile(ctx.message.voice.file_id);
+    const audioUrl = `https://api.telegram.org/file/bot${process.env.TELEGRAM_BOT_TOKEN}/${file.file_path}`;
+    
+    // Fetch audio file buffer
+    const response = await fetch(audioUrl);
+    const buffer = await response.arrayBuffer();
+    
+    // Convert to File object for Groq SDK
+    const audioFile = new File([buffer], "audio.ogg", { type: "audio/ogg" });
+    
+    const transcription = await groq.audio.transcriptions.create({
+      file: audioFile,
+      model: "whisper-large-v3-turbo",
+      response_format: "json",
+      language: "id"
+    });
+    
+    const spokenText = transcription.text;
+    await ctx.reply(`_"${spokenText}"_\n\n⏳ Menganalisis niat...`, { parse_mode: 'Markdown' });
+    
+    // Lemparkan text ke handler teks biasa untuk diproses aksinya
+    ctx.message.text = spokenText;
+    bot.handleUpdate(ctx.update);
+    
+  } catch (error) {
+    console.error('Voice Error:', error);
+    await ctx.reply('❌ Gagal memproses perintah suara (Whisper).');
   }
 });
 
@@ -365,8 +451,11 @@ bot.on('message:text', async (ctx) => {
   }
 
   try {
+    session.contextMessages.push({ role: 'user', content: text });
+    if (session.contextMessages.length > 5) session.contextMessages.shift();
+
     // 1. Cek apakah ini aksi database (kurangi/tambah/kirim)
-    const actionIntent = await parseAIIntent(text);
+    const actionIntent = await parseAIIntent(text, session.contextMessages);
     
     if (actionIntent && actionIntent.action !== 'CHAT') {
       // Tampilkan KONFIRMASI, jangan langsung eksekusi
@@ -417,14 +506,16 @@ bot.on('message:text', async (ctx) => {
     const chatReply = await groq.chat.completions.create({
       messages: [
         { role: 'system', content: `Anda adalah "Kaos Kami Bot" di Telegram. Jawab SINGKAT dan PADAT (maks 8 baris). Gunakan emoji. Jangan pernah dump semua data. Jika user bertanya stok umum, arahkan mereka klik tombol "📦 Cek Stok". Data stok sample: ${JSON.stringify(topProducts.slice(0, 8))}` },
-        { role: 'user', content: text }
+        ...session.contextMessages
       ],
       model: 'llama-3.1-8b-instant',
       temperature: 0.5,
       max_tokens: 300,
     });
 
-    await ctx.reply(chatReply.choices[0]?.message?.content || 'Maaf, saya kurang paham. Coba gunakan tombol menu di bawah.', { reply_markup: mainMenu });
+    const aiRes = chatReply.choices[0]?.message?.content || 'Maaf, saya kurang paham. Coba gunakan tombol menu di bawah.';
+    session.contextMessages.push({ role: 'assistant', content: aiRes });
+    await ctx.reply(aiRes, { reply_markup: mainMenu });
 
   } catch (error: any) {
     console.error('Bot Error:', error);
@@ -452,10 +543,15 @@ bot.callbackQuery('confirm_action', async (ctx) => {
     else if (action.action === 'UPDATE_STOCK') cmdText = `ubah stok ${action.sku} jadi ${action.qty}`;
     else if (action.action === 'PROCESS_ORDER') cmdText = `kirim ${action.qty || 1} paket ${action.sku}`;
 
-    const result = await parseAndExecuteAIAction(cmdText, 'telegram');
+    const result = await parseAndExecuteAIAction(cmdText, 'telegram', session.contextMessages);
     session.pendingAction = undefined;
 
-    await ctx.editMessageText(result || '✅ Aksi berhasil dieksekusi!', { parse_mode: 'Markdown' });
+    if (result && typeof result === 'object' && result.undoToken) {
+      const undoKeyboard = new InlineKeyboard().text('↩️ Undo Aksi Ini', `undo_${result.undoToken}`);
+      await ctx.editMessageText(result.message, { parse_mode: 'Markdown', reply_markup: undoKeyboard });
+    } else {
+      await ctx.editMessageText(result?.message || '✅ Aksi berhasil dieksekusi!', { parse_mode: 'Markdown' });
+    }
   } catch (e) {
     session.pendingAction = undefined;
     await ctx.editMessageText('❌ Gagal mengeksekusi aksi.');
@@ -469,11 +565,62 @@ bot.callbackQuery('cancel_action', async (ctx) => {
   await ctx.editMessageText('❌ Aksi dibatalkan.');
 });
 
-// ==================== AI INTENT PARSER (Lightweight) ====================
-async function parseAIIntent(text: string) {
+// ==================== UNDO HANDLER ====================
+bot.callbackQuery(/^undo_(.+)$/, async (ctx) => {
+  const token = ctx.match![1];
+  await ctx.answerCallbackQuery('Membatalkan aksi...');
+  
   try {
+    const movements = await db.select().from(stockMovements).where(eq(stockMovements.undoToken, token));
+    
+    if (movements.length === 0) {
+      await ctx.editMessageText('❌ Aksi ini sudah tidak bisa di-undo (kedaluwarsa atau tidak valid).');
+      return;
+    }
+    
+    if (!movements[0].canBeUndone) {
+      await ctx.editMessageText('❌ Aksi ini telah di-undo sebelumnya.');
+      return;
+    }
+
+    let summary = '✅ *Aksi berhasil dibatalkan (Undo)*\n\nResidu:\n';
+    
+    for (const m of movements) {
+      const p = await db.select().from(products).where(eq(products.id, m.productId));
+      if (p.length > 0) {
+        let current = p[0].currentStock;
+        let reverseQty = m.quantity;
+        
+        if (m.type === 'IN' || m.type === 'ADJUSTMENT_IN') {
+           current = Math.max(0, current - reverseQty);
+           summary += `• ${p[0].name}: -${reverseQty} (kembali ke ${current})\n`;
+        } else if (m.type === 'OUT' || m.type === 'ADJUSTMENT_OUT') {
+           current = current + reverseQty;
+           summary += `• ${p[0].name}: +${reverseQty} (kembali ke ${current})\n`;
+        }
+        
+        await db.update(products).set({ currentStock: current }).where(eq(products.id, p[0].id));
+      }
+    }
+    
+    // Mark as undone
+    await db.update(stockMovements).set({ type: 'UNDONE', canBeUndone: false }).where(eq(stockMovements.undoToken, token));
+    
+    await ctx.editMessageText(summary, { parse_mode: 'Markdown' });
+
+  } catch (e) {
+    console.error('Undo Error:', e);
+    await ctx.editMessageText('❌ Terjadi kesalahan saat membalikkan aksi.');
+  }
+});
+
+// ==================== AI INTENT PARSER (Lightweight) ====================
+async function parseAIIntent(text: string, contextMessages: {role: string, content: string}[] = []) {
+  try {
+    let ctxStr = contextMessages.map(m => `${m.role}: ${m.content}`).join('\\n');
+    const systemContent = `Anda menganalisis pesan dan return JSON. PENTING: Untuk perintah ganti stok, set stok, ubah stok jadi X, pastikan mengembalikan 'UPDATE_STOCK' dengan qty berisi angka tersebut.\nActions: "PROCESS_ORDER","DEDUCT_STOCK","ADD_STOCK","UPDATE_STOCK","CHAT". Format: {"action":"TIPE","sku":"nama","qty":angka}. Jika hanya ngobrol kembalikan "CHAT". \nKonteks Percakapan Sebelumnya: \n${ctxStr}\n\nPesan Saat Ini: "${text}"`;
     const completion = await groq.chat.completions.create({
-      messages: [{ role: 'system', content: `Anda menganalisis pesan dan return JSON. Actions: "PROCESS_ORDER","DEDUCT_STOCK","ADD_STOCK","UPDATE_STOCK","CHAT". Format: {"action":"TIPE","sku":"nama","qty":angka}. Jika hanya bertanya atau ngobrol: {"action":"CHAT"}. Pesan: "${text}"` }],
+      messages: [{ role: 'system', content: systemContent }],
       model: 'llama-3.1-8b-instant',
       temperature: 0.1,
       response_format: { type: 'json_object' }

@@ -36,12 +36,14 @@ export const products = sqliteTable('products', {
 export const stockMovements = sqliteTable('stock_movements', {
   id: text('id').primaryKey(),
   productId: text('product_id').references(() => products.id).notNull(),
-  type: text('type').notNull(), // IN, OUT, ADJUSTMENT
+  type: text('type').notNull(), // IN, OUT, ADJUSTMENT, UNDONE
   quantity: integer('quantity').notNull(),
   reason: text('reason').notNull(),
   referenceId: text('reference_id'),
   notes: text('notes'),
   createdBy: text('created_by'),
+  undoToken: text('undo_token'), // Added for Phase 7
+  canBeUndone: integer('can_be_undone', { mode: 'boolean' }).default(false), // Added for Phase 7
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull()
 });
 
@@ -105,6 +107,16 @@ export const autoDeductRules = sqliteTable('auto_deduct_rules', {
   name: text('name').notNull(),
   description: text('description'),
   items: text('items').notNull(), // JSON array: [{productId, quantity}]
+  isActive: integer('is_active', { mode: 'boolean' }).default(true),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull()
+});
+
+export const telegramUsers = sqliteTable('telegram_users', {
+  id: text('id').primaryKey(),
+  telegramId: text('telegram_id').notNull().unique(),
+  username: text('username'),
+  firstName: text('first_name'),
+  role: text('role').notNull().default('staff'), // admin, staff
   isActive: integer('is_active', { mode: 'boolean' }).default(true),
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull()
 });
