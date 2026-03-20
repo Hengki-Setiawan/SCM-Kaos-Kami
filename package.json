@@ -12,9 +12,15 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "@libsql/client": "^0.15.8",
+    "cloudinary": "^2.6.1",
+    "drizzle-orm": "^0.44.2",
+    "grammy": "^1.36.3",
+    "groq-sdk": "^0.18.0",
     "next": "16.2.0",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "@types/node": "^20.19.37",
