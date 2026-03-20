@@ -5,16 +5,16 @@ export default function Topbar() {
   return (
     <header className="topbar glass-panel justify-between" style={{ borderRadius: 0, borderTop: 0, borderRight: 0, borderLeft: 0 }}>
       <div className="flex items-center gap-4" style={{ flex: 1, maxWidth: '400px' }}>
-        {/* Global Search Button */}
-        <button 
-          className="input-field flex items-center gap-2 touch-target" 
-          style={{ width: '100%', cursor: 'pointer', padding: '0.5rem 1rem' }}
-          disabled
+        {/* Global Search Button redirects to Stock page */}
+        <Link 
+          href="/stock"
+          className="input-field flex items-center gap-2 touch-target transition-all hover:border-[rgb(var(--primary))]" 
+          style={{ width: '100%', cursor: 'pointer', padding: '0.5rem 1rem', textDecoration: 'none' }}
         >
           <span style={{ fontSize: '1rem' }}>🔍</span>
-          <span className="text-muted" style={{ flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Cari...</span>
-          <kbd className="mobile-hidden" style={{ fontSize: '0.7rem', padding: '0.1rem 0.3rem', background: 'rgba(var(--foreground-rgb), 0.1)', borderRadius: '4px' }}>Ctrl+K</kbd>
-        </button>
+          <span className="text-muted" style={{ flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Cari SKU atau Barang...</span>
+          <kbd className="mobile-hidden" style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', background: 'rgba(var(--foreground-rgb), 0.1)', borderRadius: '4px' }}>Cari</kbd>
+        </Link>
       </div>
 
       <div className="flex items-center gap-4">
