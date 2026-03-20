@@ -2,6 +2,7 @@
 
 import useSWR from 'swr';
 import Link from 'next/link';
+import { Boxes, Warehouse, AlertTriangle, Clock, History, FileText, Package, TrendingUp, Calculator, Settings, ScanLine, Sparkles, Plus } from 'lucide-react';
 
 const fetcher = (url: string) => fetch(url).then(res => res.json()).then(res => res.data);
 
@@ -33,10 +34,10 @@ export default function DashboardClient({ initialData }: { initialData: any }) {
           <p className="text-muted">Ringkasan stok dan performa hari ini.</p>
         </div>
         <div className="flex gap-2 mobile-col">
-          <Link href="/orders/new" className="btn btn-primary touch-target">+ Pesanan Baru</Link>
+          <Link href="/orders/new" className="btn btn-primary touch-target"><Plus size={16} /> Pesanan Baru</Link>
           <div className="flex gap-2">
-            <Link href="/orders/scan" className="btn btn-outline touch-target" style={{ flex: 1 }}>📸 Scan Resi</Link>
-            <Link href="/chat" className="btn btn-outline touch-target" style={{ flex: 1 }}>🤖 Tanya AI</Link>
+            <Link href="/orders/scan" className="btn btn-outline touch-target" style={{ flex: 1 }}><ScanLine size={16} /> Scan Resi</Link>
+            <Link href="/chat" className="btn btn-outline touch-target" style={{ flex: 1 }}><Sparkles size={16} /> Tanya AI</Link>
           </div>
         </div>
       </div>
@@ -44,24 +45,32 @@ export default function DashboardClient({ initialData }: { initialData: any }) {
       {/* Stats Cards */}
       <div className="grid grid-cols-4 mobile-grid-cols-2 gap-4">
         <div className="glass-card flex flex-col gap-2 transition-all">
-          <span className="text-muted text-sm">Total Varian Produk</span>
+          <div className="flex items-center gap-2">
+            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(var(--primary), 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Boxes size={18} style={{ color: 'rgb(var(--primary))' }} /></div>
+            <span className="text-muted" style={{ fontSize: '0.8rem' }}>Varian Produk</span>
+          </div>
           <span style={{ fontSize: '2rem', fontWeight: 700 }}>{totalProducts}</span>
         </div>
         <div className="glass-card flex flex-col gap-2 transition-all">
-          <span className="text-muted text-sm">Total Item di Gudang</span>
+          <div className="flex items-center gap-2">
+            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(var(--accent), 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Warehouse size={18} style={{ color: 'rgb(var(--accent))' }} /></div>
+            <span className="text-muted" style={{ fontSize: '0.8rem' }}>Item Gudang</span>
+          </div>
           <span style={{ fontSize: '2rem', fontWeight: 700 }}>{totalStock}</span>
         </div>
         <div className="glass-card flex flex-col gap-2 transition-all" style={lowStockItems > 0 ? { borderLeft: '4px solid rgb(var(--warning))' } : {}}>
-          <span className="text-muted text-sm">Stok Menipis / Habis</span>
-          <span style={{ fontSize: '2rem', fontWeight: 700, color: lowStockItems > 0 ? 'rgb(var(--warning))' : 'inherit' }}>
-            {lowStockItems}
-          </span>
+          <div className="flex items-center gap-2">
+            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(var(--warning), 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><AlertTriangle size={18} style={{ color: 'rgb(var(--warning))' }} /></div>
+            <span className="text-muted" style={{ fontSize: '0.8rem' }}>Stok Menipis</span>
+          </div>
+          <span style={{ fontSize: '2rem', fontWeight: 700, color: lowStockItems > 0 ? 'rgb(var(--warning))' : 'inherit' }}>{lowStockItems}</span>
         </div>
         <div className="glass-card flex flex-col gap-2 transition-all" style={pendingOrderCount > 0 ? { borderLeft: '4px solid rgb(var(--info))' } : {}}>
-          <span className="text-muted text-sm">Pesanan Pending</span>
-          <span style={{ fontSize: '2rem', fontWeight: 700, color: pendingOrderCount > 0 ? 'rgb(var(--info))' : 'inherit' }}>
-            {pendingOrderCount}
-          </span>
+          <div className="flex items-center gap-2">
+            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(var(--info), 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Clock size={18} style={{ color: 'rgb(var(--info))' }} /></div>
+            <span className="text-muted" style={{ fontSize: '0.8rem' }}>Pending</span>
+          </div>
+          <span style={{ fontSize: '2rem', fontWeight: 700, color: pendingOrderCount > 0 ? 'rgb(var(--info))' : 'inherit' }}>{pendingOrderCount}</span>
         </div>
       </div>
 
@@ -79,7 +88,7 @@ export default function DashboardClient({ initialData }: { initialData: any }) {
         {/* Aktivitas Terakhir (2 cols) */}
         <div className="glass-card" style={{ gridColumn: 'span 2' }}>
           <div className="flex justify-between items-center mb-4">
-            <h3>📜 Aktivitas Stok Terakhir</h3>
+            <h3 className="flex items-center gap-2" style={{ margin: 0 }}><History size={18} /> Aktivitas Stok Terakhir</h3>
             <Link href="/history" style={{ color: 'rgb(var(--primary))', fontSize: '0.85rem' }}>Lihat Semua →</Link>
           </div>
           {recentMovements.length === 0 ? (
@@ -109,11 +118,11 @@ export default function DashboardClient({ initialData }: { initialData: any }) {
           {/* Low Stock Alert */}
           <div className="glass-card flex flex-col items-start gap-3 transition-all" style={lowStockItems > 0 ? { borderTop: '3px solid rgb(var(--danger))' } : {}}>
             <div className="flex justify-between items-center w-full">
-               <h3 style={{ margin: 0 }}>⚠️ Peringatan Stok</h3>
+               <h3 style={{ margin: 0 }} className="flex items-center gap-2"><AlertTriangle size={18} /> Peringatan Stok</h3>
                {lowStockItems > 0 && (
-                 <a href="/restock/po" target="_blank" className="btn btn-primary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}>
-                   📄 Buat Surat PO
-                 </a>
+                  <a href="/restock/po" target="_blank" className="btn btn-primary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}>
+                    <FileText size={14} /> Buat PO
+                  </a>
                )}
             </div>
             {lowStockList.length > 0 ? (
@@ -132,13 +141,13 @@ export default function DashboardClient({ initialData }: { initialData: any }) {
 
           {/* Quick Actions */}
           <div className="glass-card">
-            <h3 className="mb-3">⚡ Aksi Cepat</h3>
+            <h3 className="mb-3 flex items-center gap-2"><Sparkles size={18} /> Aksi Cepat</h3>
             <div className="flex flex-col gap-2">
-              <Link href="/restock/po" target="_blank" className="btn btn-primary w-full text-sm">📄 Cetak PO Otomatis</Link>
-              <Link href="/stock" className="btn btn-outline w-full text-sm">📦 Kelola Stok</Link>
-              <Link href="/analysis" className="btn btn-outline w-full text-sm">📈 Analisis AI</Link>
-              <Link href="/calculator" className="btn btn-outline w-full text-sm">🧮 Kalkulator Harga</Link>
-              <Link href="/settings" className="btn btn-outline w-full text-sm">⚙️ Pengaturan</Link>
+              <Link href="/restock/po" target="_blank" className="btn btn-primary w-full text-sm"><FileText size={14} /> Cetak PO Otomatis</Link>
+              <Link href="/stock" className="btn btn-outline w-full text-sm"><Package size={14} /> Kelola Stok</Link>
+              <Link href="/analysis" className="btn btn-outline w-full text-sm"><TrendingUp size={14} /> Analisis AI</Link>
+              <Link href="/calculator" className="btn btn-outline w-full text-sm"><Calculator size={14} /> Kalkulator Harga</Link>
+              <Link href="/settings" className="btn btn-outline w-full text-sm"><Settings size={14} /> Pengaturan</Link>
             </div>
           </div>
         </div>

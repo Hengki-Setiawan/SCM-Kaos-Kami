@@ -2,6 +2,8 @@ import { db } from '@/db';
 import { products, categories } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import StockTableClient from './StockTableClient';
+import Link from 'next/link';
+import { Package, Plus, RefreshCcw, FileText } from 'lucide-react';
 
 export default async function StockPage() {
   const allProducts = await db.select({
@@ -26,15 +28,19 @@ export default async function StockPage() {
     <div className="flex flex-col gap-4">
       <div className="flex justify-between items-start mobile-col mobile-gap-2 mb-4">
         <div>
-          <h1>Manajemen Stok</h1>
+          <h1 className="flex items-center gap-2"><Package size={28} /> Manajemen Stok</h1>
           <p className="text-muted">Kelola dan pantau stok dari semua kategori.</p>
         </div>
         <div className="flex gap-2 mobile-col" style={{ width: '100%' }}>
-          <button className="btn btn-primary touch-target" style={{ flex: 1 }}>+ Tambah Produk</button>
+          <Link href="/orders/new" className="btn btn-primary touch-target" style={{ flex: 1, textDecoration: 'none' }}>
+            <Plus size={16} /> Tambah Pesanan
+          </Link>
           <div className="flex gap-2 mobile-col" style={{ flex: 1 }}>
-            <button className="btn btn-outline touch-target" style={{ flex: 1 }}>Restock Cepat</button>
+            <Link href="/restock/po" className="btn btn-outline touch-target" style={{ flex: 1, textDecoration: 'none' }}>
+              <RefreshCcw size={16} /> Restock Cepat
+            </Link>
             <a href="/restock/po" target="_blank" className="btn btn-outline touch-target" style={{ flex: 1, borderColor: 'rgb(var(--primary))', color: 'rgb(var(--primary))' }}>
-              📄 Isi PO
+              <FileText size={16} /> Isi PO
             </a>
           </div>
         </div>

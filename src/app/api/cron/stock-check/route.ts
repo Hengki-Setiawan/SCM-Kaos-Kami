@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
-import { products, alerts } from '@/db/schema';
+import { products, alerts, telegramUsers } from '@/db/schema';
 import { lte, eq, and } from 'drizzle-orm';
-import { Bot } from 'grammy';
+import { Bot, InlineKeyboard } from 'grammy';
 import { v4 as uuidv4 } from 'uuid';
 
 export const maxDuration = 60; // Vercel limit max 60s
@@ -63,15 +63,37 @@ export async function GET(req: Request) {
 
     messageText += `\n_Pesan otomatis dari SCM bot. Mohon segera restock!_`;
 
-    // 4. Kirim ke Telegram (Membutuhkan TELEGRAM_CHAT_ID di .env)
-    const chatId = process.env.TELEGRAM_CHAT_ID;
-    
-    if (itemsToAlert > 0 && chatId) {
-       const bot = new Bot(process.env.TELEGRAM_BOT_TOKEN as string);
-       await bot.api.sendMessage(chatId as string, messageText, { parse_mode: 'Markdown' });
-       return NextResponse.json({ message: 'Peringatan terkirim ke Telegram.', count: itemsToAlert });
-    } else if (itemsToAlert > 0 && !chatId) {
-       return NextResponse.json({ error: 'TELEGRAM_CHAT_ID belum diatur di env. Alert tersimpan di DB.' });
+    // 4. Kirim ke Telegram Admin (Semua yang role='admin' dan aktif)
+    const admins = await db.select().from(telegramUsers).where(
+      and(eq(telegramUsers.role, 'admin'), eq(telegramUsers.isActive, true))
+    );
+
+    const poUrl = process.env.NEXT_PUBLIC_APP_URL ? `${process.env.NEXT_PUBLIC_APP_URL}/restock/po` : 'https://scm-kaos-kami.vercel.app/restock/po';
+    const actionKeyboard = new InlineKeyboard()
+      .url('📄 Buat Draft PO Sekarang', poUrl)
+      .row()
+      .text('📦 Cek Detail Stok', 'btn_stock');
+
+    const bot = new Bot(process.env.TELEGRAM_BOT_TOKEN as string);
+    let sentCount = 0;
+
+    if (itemsToAlert > 0) {
+      if (admins.length > 0) {
+        for (const admin of admins) {
+          try {
+            await bot.api.sendMessage(admin.telegramId, messageText, { parse_mode: 'Markdown', reply_markup: actionKeyboard });
+            sentCount++;
+          } catch (e) { console.error(`Failed to send to admin ${admin.telegramId}`); }
+        }
+        return NextResponse.json({ message: `Peringatan terkirim ke ${sentCount} admin Telegram.`, count: itemsToAlert });
+      } else {
+        // Fallback to TELEGRAM_CHAT_ID from env if no admins in DB
+        const envChatId = process.env.TELEGRAM_CHAT_ID;
+        if (envChatId) {
+          await bot.api.sendMessage(envChatId, messageText, { parse_mode: 'Markdown', reply_markup: actionKeyboard });
+          return NextResponse.json({ message: 'Peringatan terkirim ke Admin utama (ENV).', count: itemsToAlert });
+        }
+      }
     }
 
     return NextResponse.json({ message: 'Tidak ada alert baru yang perlu dikirim.' });

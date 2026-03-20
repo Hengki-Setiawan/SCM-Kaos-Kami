@@ -8,6 +8,9 @@ const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 export async function parseAndExecuteAIAction(text: string, source: 'web' | 'telegram', contextMessages: any[] = []) {
   try {
+    const allProducts = await db.select().from(products);
+    const catalogStr = allProducts.map(p => `[SKU: ${p.sku}] ${p.name}`).join('\n');
+
     const systemPrompt = `
       Anda adalah "Action Parser" untuk sistem SCM Kaos Kami.
       Tugas Anda menganalisis pesan user dan mengonversinya menjadi JSON action object.
@@ -28,6 +31,11 @@ export async function parseAndExecuteAIAction(text: string, source: 'web' | 'tel
       Contoh Chat: "Ubah stok kaos putih M jadi 15"
       Output JSON: {"action": "UPDATE_STOCK", "sku": "kaos putih M", "qty": 15, "reason": "Koreksi manual"}
       
+      ⚡ SANGAT PENTING: Cocokkan produk yang dimaksud user dengan KATALOG resmimu di bawah ini:
+      ${catalogStr}
+      
+      Isi field "sku" di JSON dengan "SKU" persis atau "Nama" persis dari katalog yang paling cocok dengan ucapan user. Jangan mengarang nama barang.
+
       Pesan User: "${text}"
       
       Konteks Chat Sebelumnya (Gunakan ini jika User tidak menyebut nama barang secara spesifik): 
@@ -47,8 +55,9 @@ export async function parseAndExecuteAIAction(text: string, source: 'web' | 'tel
       return null;
     }
 
-    const allProducts = await db.select().from(products);
     const p = allProducts.find(x => 
+      x.sku.toLowerCase() === intent.sku.toLowerCase() || 
+      x.name.toLowerCase() === intent.sku.toLowerCase() ||
       x.sku.toLowerCase().includes(intent.sku.toLowerCase()) || 
       x.name.toLowerCase().includes(intent.sku.toLowerCase())
     );

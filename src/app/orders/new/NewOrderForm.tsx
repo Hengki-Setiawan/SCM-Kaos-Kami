@@ -9,9 +9,9 @@ type OrderItem = {
   unitPrice: number;
 };
 
-export default function NewOrderForm({ products }: { products: any[] }) {
-  const [customerName, setCustomerName] = useState('');
-  const [platform, setPlatform] = useState('shopee');
+export default function NewOrderForm({ products, initialCustomerName = '', initialPlatform = '' }: { products: any[], initialCustomerName?: string, initialPlatform?: string }) {
+  const [customerName, setCustomerName] = useState(initialCustomerName);
+  const [platform, setPlatform] = useState(initialPlatform || 'shopee');
   const [items, setItems] = useState<OrderItem[]>([{ productId: '', quantity: 1, unitPrice: 0 }]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 

@@ -2,6 +2,7 @@ import { db } from '@/db';
 import { stockMovements, products } from '@/db/schema';
 import { desc, eq } from 'drizzle-orm';
 import Link from 'next/link';
+import { History } from 'lucide-react';
 
 export default async function HistoryPage() {
   const movements = await db.select({
@@ -32,7 +33,7 @@ export default async function HistoryPage() {
     <div className="flex flex-col gap-4 max-w-5xl mx-auto w-full">
       <div className="flex justify-between items-center">
         <div>
-          <h1>📜 Riwayat Pergerakan Stok</h1>
+          <h1 className="flex items-center gap-2"><History size={28} /> Riwayat Pergerakan Stok</h1>
           <p className="text-muted">Log semua aktivitas masuk, keluar, dan koreksi stok.</p>
         </div>
         <Link href="/" className="btn btn-outline">← Dashboard</Link>

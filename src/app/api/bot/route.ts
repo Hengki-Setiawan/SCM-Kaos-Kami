@@ -8,6 +8,28 @@ import { v4 as uuidv4 } from 'uuid';
 const bot = new Bot(process.env.TELEGRAM_BOT_TOKEN as string);
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
+// ==================== TIME-BASED GREETING ====================
+function getGreeting(): string {
+  const hour = parseInt(new Date().toLocaleString('id-ID', { timeZone: 'Asia/Makassar', hour: 'numeric', hour12: false }));
+  if (hour >= 4 && hour < 11) return '🌅 Selamat pagi, Bos!';
+  if (hour >= 11 && hour < 15) return '☀️ Selamat siang, Bos!';
+  if (hour >= 15 && hour < 18) return '🌤️ Selamat sore, Bos!';
+  return '🌙 Selamat malam, Bos!';
+}
+
+// Follow-up keyboard for common actions
+const followUpStock = new InlineKeyboard()
+  .text('📦 Semua Stok', 'cat_all').text('⚠️ Low Stock', 'btn_lowstock').row()
+  .text('📄 Buat PO', 'btn_po_link').text('🏠 Menu', 'btn_mainmenu');
+
+const followUpOrder = new InlineKeyboard()
+  .text('📋 Pesanan', 'btn_orders').text('📦 Cek Stok', 'btn_stock').row()
+  .text('↩️ Undo', 'btn_undo').text('🏠 Menu', 'btn_mainmenu');
+
+const followUpGeneral = new InlineKeyboard()
+  .text('📦 Stok', 'btn_stock').text('📋 Pesanan', 'btn_orders').row()
+  .text('📈 Laporan', 'btn_report').text('🏠 Menu', 'btn_mainmenu');
+
 // ==================== SESSION STATE ====================
 const sessions = new Map<number, { 
   pendingAction?: any; 
@@ -37,38 +59,55 @@ const menuLain = new Keyboard()
 
 // ==================== SECURITY MIDDLEWARE (ROLE MANAGEMENT) ====================
 bot.use(async (ctx, next) => {
-  const tId = ctx.from?.id.toString() || '';
-  const username = ctx.from?.username || '';
-  
-  // Super Admin bypass via ENV
-  const isSuperAdmin = username === process.env.TELEGRAM_USERNAME?.replace('@', '');
-  
-  // Check against DB
-  const userDb = await db.select().from(telegramUsers).where(eq(telegramUsers.telegramId, tId));
-  const isRegistered = userDb.length > 0 && userDb[0].isActive;
+  if (ctx.from) {
+    const tId = ctx.from.id.toString();
+    const username = ctx.from.username || '';
+    const isSuperAdmin = username === process.env.TELEGRAM_USERNAME?.replace('@', '');
+    
+    const userDb = await db.select().from(telegramUsers).where(eq(telegramUsers.telegramId, tId));
+    const isRegistered = userDb.length > 0 && userDb[0].isActive;
 
-  if (!isSuperAdmin && !isRegistered) {
-    await ctx.reply(`🚫 Akses ditolak. Bot SCM Kaos Kami hanya untuk karyawan terdaftar.\nID Telegram Anda: \`${tId}\`\nBerikan ID ini ke admin jika Anda adalah staff.`, { parse_mode: 'Markdown' });
-    return;
+    if (!isSuperAdmin && !isRegistered) {
+      if (ctx.message) await ctx.reply(`🚫 Akses ditolak. ID Telegram Anda: \`${tId}\``, { parse_mode: 'Markdown' });
+      return;
+    }
+
+    (ctx as any).session = (ctx as any).session || {};
+    (ctx as any).session.role = isSuperAdmin ? 'admin' : userDb[0].role;
   }
+  await next();
+});
 
-  // Inject role to context state
-  (ctx as any).session = (ctx as any).session || {};
-  (ctx as any).session.role = isSuperAdmin ? 'admin' : userDb[0].role;
+// ==================== CONTEXTUAL MENU DELETION (GLOBAL) ====================
+bot.on('callback_query', async (ctx, next) => {
+  const data = ctx.callbackQuery.data;
+  const keepKeys = ['confirm_action', 'cancel_action'];
   
+  if (data && !keepKeys.includes(data) && !data.startsWith('undo_') && !data.startsWith('cat_')) {
+    try {
+      await ctx.editMessageReplyMarkup(undefined);
+    } catch (e) { /* ignore */ }
+  }
   await next();
 });
 
 // ==================== /start ====================
 bot.command('start', async (ctx) => {
+  const greeting = getGreeting();
   await ctx.reply(
-    `🧵 *Selamat datang di Kaos Kami SCM!*\n\n` +
-    `Saya adalah asisten gudang Anda. Gunakan tombol di bawah untuk navigasi, atau langsung ketik perintah dalam bahasa Indonesia.\n\n` +
-    `*Contoh perintah:*\n` +
-    `• _"Stok kaos hitam L berapa?"_\n` +
-    `• _"Kirim 1 paket Skizo hitam L"_\n` +
-    `• _"Tambah stok polymailer 100"_\n\n` +
-    `Atau kirim 📸 foto resi untuk dibaca AI!`,
+    `🧵 *${greeting}*\n\n` +
+    `Selamat datang di *Kaos Kami SCM* — asisten gudang AI pribadi Anda 🤖\n\n` +
+    `─────────────────────────\n` +
+    `🎯 *Yang bisa saya lakukan:*\n\n` +
+    `📦 Cek stok real-time\n` +
+    `📋 Kelola pesanan \u0026 pengiriman\n` +
+    `📸 Scan resi otomatis (kirim foto)\n` +
+    `🎙️ Voice command (kirim voice note)\n` +
+    `📈 Laporan \u0026 analisis bisnis\n` +
+    `🧮 Kalkulator harga AI\n\n` +
+    `─────────────────────────\n` +
+    `💡 *Coba ketik:* _"Stok kaos hitam L"_\n` +
+    `📸 *Atau kirim foto resi!*`,
     { parse_mode: 'Markdown', reply_markup: mainMenu }
   );
 });
@@ -90,7 +129,10 @@ bot.hears('📦 Cek Stok', async (ctx) => {
       reply_markup: keyboard 
     });
   } catch (e) {
-    await ctx.reply('❌ Gagal memuat kategori.');
+    await ctx.reply('❌ *Server sedang sibuk.* Coba lagi dalam beberapa detik.', {
+      parse_mode: 'Markdown',
+      reply_markup: new InlineKeyboard().text('🔄 Coba Lagi', 'btn_stock').text('🏠 Menu', 'btn_mainmenu')
+    });
   }
 });
 
@@ -133,11 +175,11 @@ bot.callbackQuery(/^cat_(.+)$/, async (ctx) => {
     });
 
     const totalStock = items.reduce((a, b) => a + b.stock, 0);
-    msg += `\n📊 Total: *${totalStock}* pcs dari ${items.length} varian`;
+    msg += `\n─────────────────────────\n📊 Total: *${totalStock}* pcs dari ${items.length} varian`;
 
-    await ctx.editMessageText(msg, { parse_mode: 'Markdown' });
+    await ctx.editMessageText(msg, { parse_mode: 'Markdown', reply_markup: followUpStock });
   } catch (e) {
-    await ctx.editMessageText('❌ Gagal memuat data stok.');
+    await ctx.editMessageText('❌ *Gagal memuat data stok.* Coba pilih kategori lagi.', { parse_mode: 'Markdown' });
   }
 });
 
@@ -163,9 +205,16 @@ bot.hears('⚠️ Low Stock', async (ctx) => {
       msg += `${icon} | ${p.name}\n   Sisa: *${p.stock}* / Min: ${p.min}\n\n`;
     });
 
-    await ctx.reply(msg, { parse_mode: 'Markdown' });
+    const lowFollowUp = new InlineKeyboard()
+      .text('📄 Generate PO', 'btn_po_link').text('📊 Laporan', 'btn_report').row()
+      .text('🏠 Menu', 'btn_mainmenu');
+
+    await ctx.reply(msg, { parse_mode: 'Markdown', reply_markup: lowFollowUp });
   } catch (e) {
-    await ctx.reply('❌ Gagal memuat data low stock.');
+    await ctx.reply('❌ *Gagal memuat data.* Coba lagi sebentar.', {
+      parse_mode: 'Markdown',
+      reply_markup: new InlineKeyboard().text('🔄 Coba Lagi', 'btn_lowstock')
+    });
   }
 });
 
@@ -190,9 +239,16 @@ bot.hears('📋 Pesanan', async (ctx) => {
       msg += `   Status: *${o.status}*\n\n`;
     });
 
-    await ctx.reply(msg, { parse_mode: 'Markdown' });
+    const orderFollowUp = new InlineKeyboard()
+      .text('📦 Cek Stok', 'btn_stock').text('📈 Laporan', 'btn_report').row()
+      .text('🏠 Menu', 'btn_mainmenu');
+
+    await ctx.reply(msg, { parse_mode: 'Markdown', reply_markup: orderFollowUp });
   } catch (e) {
-    await ctx.reply('❌ Gagal memuat pesanan.');
+    await ctx.reply('❌ *Server sibuk.* Coba lagi dalam beberapa detik.', {
+      parse_mode: 'Markdown',
+      reply_markup: new InlineKeyboard().text('🔄 Coba Lagi', 'btn_orders')
+    });
   }
 });
 
@@ -238,30 +294,40 @@ bot.hears('📈 Laporan', async (ctx) => {
   }
 });
 
-// Callback shortcuts from laporan
+// ==================== SHORTCUT CALLBACK HANDLERS ====================
+bot.callbackQuery('btn_mainmenu', async (ctx) => {
+  await ctx.answerCallbackQuery();
+  await ctx.reply('🏠 *Menu Utama*', { parse_mode: 'Markdown', reply_markup: mainMenu });
+});
+
+bot.callbackQuery('btn_stock', async (ctx) => {
+  await ctx.answerCallbackQuery();
+  ctx.message = { text: '📦 Cek Stok' } as any; 
+  await bot.handleUpdate(ctx.update);
+});
+
+bot.callbackQuery('btn_report', async (ctx) => {
+  await ctx.answerCallbackQuery();
+  ctx.message = { text: '📈 Laporan' } as any;
+  await bot.handleUpdate(ctx.update);
+});
+
+bot.callbackQuery('btn_po_link', async (ctx) => {
+  await ctx.answerCallbackQuery();
+  const poUrl = process.env.NEXT_PUBLIC_APP_URL ? `${process.env.NEXT_PUBLIC_APP_URL}/restock/po` : 'https://scm-kaos-kami.vercel.app/restock/po';
+  await ctx.reply(`📄 Silakan buka tautan berikut untuk membuat PO Otomatis:\n\n🔗 [Buka Surat PO](${poUrl})\n\n*(Web App akan terbuka)*`, { parse_mode: 'Markdown', reply_markup: mainMenu });
+});
+
 bot.callbackQuery('btn_lowstock', async (ctx) => {
   await ctx.answerCallbackQuery();
-  // Trigger low stock handler
-  await ctx.reply('⚠️ Memuat data low stock...', { reply_markup: mainMenu });
-  // Simulate hears trigger
-  const lowItems = await db.select({
-    name: products.name, stock: products.currentStock, min: products.minStock
-  }).from(products).where(lte(products.currentStock, products.minStock)).limit(15);
-  
-  if (lowItems.length === 0) { await ctx.reply('✅ Semua stok aman!'); return; }
-  let msg = `⚠️ *${lowItems.length} Produk Low Stock:*\n\n`;
-  lowItems.forEach(p => { msg += `${p.stock === 0 ? '🔴' : '⚠️'} ${p.name}: *${p.stock}*/${p.min}\n`; });
-  await ctx.reply(msg, { parse_mode: 'Markdown' });
+  ctx.message = { text: '⚠️ Low Stock' } as any;
+  await bot.handleUpdate(ctx.update);
 });
 
 bot.callbackQuery('btn_orders', async (ctx) => {
   await ctx.answerCallbackQuery();
-  const recent = await db.select().from(orders).orderBy(desc(orders.createdAt)).limit(5);
-  if (recent.length === 0) { await ctx.reply('📭 Belum ada pesanan.'); return; }
-  let msg = `📋 *Pesanan Terakhir:*\n\n`;
-  const si: Record<string, string> = { pending: '🟡', processing: '🔵', shipped: '📦', completed: '✅', cancelled: '❌' };
-  recent.forEach(o => { msg += `${si[o.status] || '⚪'} #${o.orderNumber} — ${o.customerName} (*${o.status}*)\n`; });
-  await ctx.reply(msg, { parse_mode: 'Markdown' });
+  ctx.message = { text: '📋 Pesanan' } as any;
+  await bot.handleUpdate(ctx.update);
 });
 
 bot.callbackQuery('btn_csv', async (ctx) => {
@@ -270,8 +336,8 @@ bot.callbackQuery('btn_csv', async (ctx) => {
   await ctx.answerCallbackQuery('Membuat CSV...');
   try {
     const all = await db.select().from(products);
-    let csv = 'SKU,Nama,Kategori,Harga Beli,Harga Jual,Stok Saat Ini,Min Stok\\n';
-    all.forEach(p => { csv += `"${p.sku}","${p.name}","${p.categoryId}",${p.buyPrice || 0},${p.unitPrice || 0},${p.currentStock},${p.minStock}\\n`; });
+    let csv = 'SKU,Nama,Kategori,Harga Beli,Harga Jual,Stok Saat Ini,Min Stok\n';
+    all.forEach(p => { csv += `"${p.sku}","${p.name}","${p.categoryId}",${p.buyPrice || 0},${p.unitPrice || 0},${p.currentStock},${p.minStock}\n`; });
     
     const buffer = Buffer.from(csv, 'utf-8');
     const d = new Date().toISOString().split('T')[0];
@@ -494,18 +560,22 @@ bot.on('message:text', async (ctx) => {
         .text('✅ Ya, Lanjutkan', 'confirm_action')
         .text('❌ Batalkan', 'cancel_action');
 
-      await ctx.reply(`⚠️ ${preview}\n\nLanjutkan?`, { parse_mode: 'Markdown', reply_markup: confirmKeyboard });
+      if (p.imageUrl) {
+        await ctx.replyWithPhoto(p.imageUrl, { caption: `⚠️ ${preview}\n\nLanjutkan?`, parse_mode: 'Markdown', reply_markup: confirmKeyboard });
+      } else {
+        await ctx.reply(`⚠️ ${preview}\n\nLanjutkan?`, { parse_mode: 'Markdown', reply_markup: confirmKeyboard });
+      }
       return;
     }
 
     // 2. Jika bukan aksi, jawab sebagai AI Chat (ringkas)
-    const topProducts = await db.select({
+    const allStockData = await db.select({
       name: products.name, stock: products.currentStock
-    }).from(products).limit(15);
+    }).from(products);
 
     const chatReply = await groq.chat.completions.create({
       messages: [
-        { role: 'system', content: `Anda adalah "Kaos Kami Bot" di Telegram. Jawab SINGKAT dan PADAT (maks 8 baris). Gunakan emoji. Jangan pernah dump semua data. Jika user bertanya stok umum, arahkan mereka klik tombol "📦 Cek Stok". Data stok sample: ${JSON.stringify(topProducts.slice(0, 8))}` },
+        { role: 'system', content: `Anda adalah "Kaos Kami Bot" di Telegram. Jawab SINGKAT dan PADAT (maks 8 baris). Gunakan emoji. Jika user bertanya stok, cari datanya di list ini: ${JSON.stringify(allStockData)}. Berikan jawaban natural.` },
         ...session.contextMessages
       ],
       model: 'llama-3.1-8b-instant',
@@ -617,8 +687,12 @@ bot.callbackQuery(/^undo_(.+)$/, async (ctx) => {
 // ==================== AI INTENT PARSER (Lightweight) ====================
 async function parseAIIntent(text: string, contextMessages: {role: string, content: string}[] = []) {
   try {
+    const allProd = await db.select({ sku: products.sku, name: products.name }).from(products);
+    const catalogStr = allProd.map(p => `[SKU: ${p.sku}] ${p.name}`).join('\\n');
     let ctxStr = contextMessages.map(m => `${m.role}: ${m.content}`).join('\\n');
-    const systemContent = `Anda menganalisis pesan dan return JSON. PENTING: Untuk perintah ganti stok, set stok, ubah stok jadi X, pastikan mengembalikan 'UPDATE_STOCK' dengan qty berisi angka tersebut.\nActions: "PROCESS_ORDER","DEDUCT_STOCK","ADD_STOCK","UPDATE_STOCK","CHAT". Format: {"action":"TIPE","sku":"nama","qty":angka}. Jika hanya ngobrol kembalikan "CHAT". \nKonteks Percakapan Sebelumnya: \n${ctxStr}\n\nPesan Saat Ini: "${text}"`;
+    
+    const systemContent = `Anda menganalisis pesan dan return JSON. PENTING: Untuk perintah ganti stok, set stok, ubah stok jadi X, pastikan mengembalikan 'UPDATE_STOCK' dengan qty berisi angka tersebut.\\nActions: "PROCESS_ORDER","DEDUCT_STOCK","ADD_STOCK","UPDATE_STOCK","CHAT".\\nFormat: {"action":"TIPE","sku":"namasku","qty":angka}. Jika hanya ngobrol kembalikan "CHAT".\\n\\n⚡ SANGAT PENTING: Jika mengembalikan aksi gudang, cocokkan barang yang diminta user dengan KATALOG INI:\\n${catalogStr}\\n\\nIsi field "sku" di JSON dengan *SKU persis* atau *Nama persis* dari katalog di atas yang paling cocok!\\n\\nKonteks Percakapan Sebelumnya: \\n${ctxStr}\\n\\nPesan Saat Ini: "${text}"`;
+    
     const completion = await groq.chat.completions.create({
       messages: [{ role: 'system', content: systemContent }],
       model: 'llama-3.1-8b-instant',
