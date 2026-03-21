@@ -3,11 +3,14 @@ import { cookies } from 'next/headers';
 
 const secretKey = process.env.JWT_SECRET;
 if (!secretKey && process.env.NODE_ENV === 'production') {
-  throw new Error('CRITICAL: JWT_SECRET tidak terkonfigurasi di Vercel/Production Environment!');
+  console.error('CRITICAL: JWT_SECRET tidak terkonfigurasi di Vercel/Production Environment! Login akan ditolak.');
 }
 const key = new TextEncoder().encode(secretKey || 'kaos-kami-super-secret-12345');
 
 export async function encrypt(payload: any) {
+  if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
+    throw new Error('CRITICAL: JWT_SECRET tidak terkonfigurasi di Vercel!');
+  }
   return await new SignJWT(payload)
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
