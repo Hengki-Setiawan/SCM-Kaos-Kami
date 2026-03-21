@@ -807,5 +807,230 @@ async function parseAIIntent(text: string, contextMessages: {role: string, conte
   }
 }
 
+// ==================== 📸 PHOTO HANDLER — VISION AI ====================
+bot.on('message:photo', async (ctx) => {
+  const session = getSession(ctx.chat.id);
+  const caption = ctx.message.caption || '';
+
+  try {
+    await ctx.reply('🔍 *Sedang menganalisis gambar...*', { parse_mode: 'Markdown' });
+
+    // Get the highest resolution photo
+    const photos = ctx.message.photo;
+    const bestPhoto = photos[photos.length - 1];
+    const file = await ctx.api.getFile(bestPhoto.file_id);
+    const fileUrl = `https://api.telegram.org/file/bot${process.env.TELEGRAM_BOT_TOKEN}/${file.file_path}`;
+
+    // Download image and convert to base64
+    const imgResponse = await fetch(fileUrl);
+    const imgBuffer = await imgResponse.arrayBuffer();
+    const base64Image = Buffer.from(imgBuffer).toString('base64');
+    const mimeType = file.file_path?.endsWith('.png') ? 'image/png' : 'image/jpeg';
+    const dataUrl = `data:${mimeType};base64,${base64Image}`;
+
+    // Get product catalog for context
+    const allProds = await db.select({ sku: products.sku, name: products.name, unitPrice: products.unitPrice }).from(products);
+    const catalogStr = allProds.map(p => `[SKU: ${p.sku}] ${p.name} Rp${p.unitPrice}`).join('\n');
+
+    // Multi-mode Vision prompt
+    const visionPrompt = `Anda adalah AI Vision untuk sistem SCM Kaos Kami. Analisis gambar ini dan tentukan TIPE gambar:
+
+1. **PRODUK** — Jika gambar menunjukkan kaos/produk pakaian → Identifikasi warna, ukuran, jenis. Cocokkan dengan katalog.
+2. **RESI/NOTA** — Jika gambar menunjukkan struk/resi/nota pengiriman → Ekstrak: customerName, trackingNumber, platform, items.
+3. **SCREENSHOT_CHAT** — Jika gambar berupa screenshot percakapan customer → Ekstrak: customerName, platform, items yang dipesan, qty, alamat.
+4. **NOTA_PENGELUARAN** — Jika gambar menunjukkan bon/struk belanja bahan → Ekstrak: title, amount, items, vendor.
+5. **LAINNYA** — Jika tidak sesuai kategori di atas.
+
+KATALOG PRODUK KAMI:
+${catalogStr}
+
+${caption ? `Keterangan user: "${caption}"` : ''}
+
+Return JSON format:
+{
+  "type": "PRODUK|RESI|SCREENSHOT_CHAT|NOTA_PENGELUARAN|LAINNYA",
+  "summary": "Ringkasan singkat apa yang terlihat",
+  "extractedData": { ... data relevan ... },
+  "suggestedAction": "Saran aksi yang bisa diambil"
+}`;
+
+    const completion = await groq.chat.completions.create({
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'text', text: visionPrompt },
+          { type: 'image_url', image_url: { url: dataUrl } }
+        ]
+      }],
+      model: 'llama-3.2-11b-vision-preview',
+      temperature: 0.2,
+      max_tokens: 2048,
+      response_format: { type: 'json_object' }
+    });
+
+    const result = JSON.parse(completion.choices[0]?.message?.content || '{}');
+
+    // Format response based on type
+    let response = '';
+    const keyboard = new InlineKeyboard();
+
+    if (result.type === 'PRODUK') {
+      response = `📸 *Identifikasi Produk*\n\n${result.summary}\n\n`;
+      if (result.extractedData?.matchedProduct) {
+        response += `✅ Cocok dengan: *${result.extractedData.matchedProduct}*\n`;
+      }
+      if (result.suggestedAction) response += `\n💡 _${result.suggestedAction}_`;
+      keyboard.text('📦 Cek Stok', 'btn_stock').text('🏠 Menu', 'btn_mainmenu');
+
+    } else if (result.type === 'RESI') {
+      const d = result.extractedData || {};
+      response = `📋 *Data Resi Terdeteksi*\n\n`;
+      if (d.customerName) response += `👤 Pelanggan: *${d.customerName}*\n`;
+      if (d.trackingNumber) response += `📦 No Resi: \`${d.trackingNumber}\`\n`;
+      if (d.platform) response += `🏪 Platform: ${d.platform}\n`;
+      response += `\n💡 _${result.suggestedAction || 'Gunakan data ini untuk membuat pesanan baru.'}_`;
+      keyboard.text('📋 Buat Pesanan', 'btn_orders').text('🏠 Menu', 'btn_mainmenu');
+
+    } else if (result.type === 'SCREENSHOT_CHAT') {
+      const d = result.extractedData || {};
+      response = `💬 *Data Chat Customer Terdeteksi*\n\n`;
+      if (d.customerName) response += `👤 Pelanggan: *${d.customerName}*\n`;
+      if (d.platform) response += `🏪 Platform: ${d.platform}\n`;
+      if (d.items) response += `📦 Produk: ${Array.isArray(d.items) ? d.items.join(', ') : d.items}\n`;
+      if (d.qty) response += `🔢 Qty: ${d.qty}\n`;
+      response += `\n💡 _${result.suggestedAction || 'Anda bisa langsung buat pesanan dari data ini.'}_`;
+      keyboard.text('📋 Buat Pesanan', 'btn_orders').text('🏠 Menu', 'btn_mainmenu');
+
+    } else if (result.type === 'NOTA_PENGELUARAN') {
+      const d = result.extractedData || {};
+      response = `💸 *Nota Pengeluaran Terdeteksi*\n\n`;
+      if (d.title) response += `📝 Deskripsi: *${d.title}*\n`;
+      if (d.amount) response += `💰 Total: *Rp ${new Intl.NumberFormat('id-ID').format(d.amount)}*\n`;
+      if (d.vendor) response += `🏪 Vendor: ${d.vendor}\n`;
+      if (d.items) response += `📦 Items: ${Array.isArray(d.items) ? d.items.join(', ') : d.items}\n`;
+      response += `\n💡 _${result.suggestedAction || 'Mau saya catat sebagai pengeluaran?'}_`;
+
+      // Auto-suggest logging expense  
+      if (d.amount && d.title) {
+        session.pendingAction = { action: 'LOG_EXPENSE', title: d.title, category: 'operasional', qty: d.amount };
+        keyboard.text('✅ Catat Pengeluaran', 'confirm_action').text('❌ Batal', 'cancel_action');
+      } else {
+        keyboard.text('💸 Catat Manual', 'btn_expense').text('🏠 Menu', 'btn_mainmenu');
+      }
+
+    } else {
+      response = `🖼️ *Hasil Analisis Gambar*\n\n${result.summary || 'Gambar diterima tapi tidak dapat diidentifikasi sebagai produk, resi, atau nota.'}`;
+      if (result.suggestedAction) response += `\n\n💡 _${result.suggestedAction}_`;
+      keyboard.text('🏠 Menu', 'btn_mainmenu');
+    }
+
+    await ctx.reply(response, { parse_mode: 'Markdown', reply_markup: keyboard });
+
+  } catch (error: any) {
+    console.error('Vision Bot Error:', error);
+    await ctx.reply('❌ Gagal menganalisis gambar. Pastikan gambar jelas dan coba lagi.', { reply_markup: followUpGeneral });
+  }
+});
+
+// ==================== 🎙️ VOICE HANDLER — GROQ WHISPER STT ====================
+bot.on('message:voice', async (ctx) => {
+  try {
+    await ctx.reply('🎙️ *Sedang mendengarkan pesan suara...*', { parse_mode: 'Markdown' });
+
+    // Download voice file
+    const file = await ctx.api.getFile(ctx.message.voice.file_id);
+    const fileUrl = `https://api.telegram.org/file/bot${process.env.TELEGRAM_BOT_TOKEN}/${file.file_path}`;
+    
+    const voiceResponse = await fetch(fileUrl);
+    const voiceBuffer = await voiceResponse.arrayBuffer();
+
+    // Convert to File object for Groq Whisper
+    const audioFile = new File([voiceBuffer], 'voice.ogg', { type: 'audio/ogg' });
+    
+    // Transcribe with Groq Whisper
+    const transcription = await groq.audio.transcriptions.create({
+      file: audioFile,
+      model: 'whisper-large-v3',
+      language: 'id', // Indonesian
+      response_format: 'text',
+    });
+
+    const transcript = typeof transcription === 'string' ? transcription : (transcription as any).text || '';
+
+    if (!transcript || transcript.trim().length === 0) {
+      await ctx.reply('❌ Tidak dapat mengenali suara. Coba bicara lebih jelas atau kirim pesan teks.', { reply_markup: followUpGeneral });
+      return;
+    }
+
+    // Show transcript to user
+    await ctx.reply(`🎙️ *Transkrip:*\n_"${transcript.trim()}"_\n\n⏳ Sedang memproses perintah...`, { parse_mode: 'Markdown' });
+
+    // Now process the transcript as a regular text message through the AI pipeline
+    const session = getSession(ctx.chat.id);
+    session.contextMessages.push({ role: 'user', content: `[VOICE] ${transcript.trim()}` });
+    if (session.contextMessages.length > 10) session.contextMessages = session.contextMessages.slice(-10);
+
+    // Parse intent
+    const actionIntent = await parseAIIntent(transcript.trim(), session.contextMessages);
+
+    // If it's an actionable intent, handle via confirmation flow
+    const NON_PRODUCT_ACTIONS = ['CREATE_CATEGORY', 'DELETE_CATEGORY', 'CREATE_SUPPLIER', 'DELETE_SUPPLIER', 'CREATE_ORDER', 'DELETE_ORDER', 'UPDATE_ORDER_STATUS'];
+
+    if (actionIntent && actionIntent.action === 'LOG_EXPENSE') {
+      session.pendingAction = actionIntent;
+      const confirmKeyboard = new InlineKeyboard()
+        .text('✅ Ya, Catat', 'confirm_action')
+        .text('❌ Batalkan', 'cancel_action');
+      await ctx.reply(`💸 *Catat Pengeluaran dari Suara*\n\n📝 ${actionIntent.title}\n💰 Rp ${new Intl.NumberFormat('id-ID').format(actionIntent.qty || 0)}\n📂 ${actionIntent.category || 'operasional'}\n\nLanjutkan?`, { parse_mode: 'Markdown', reply_markup: confirmKeyboard });
+      return;
+    }
+
+    if (actionIntent && NON_PRODUCT_ACTIONS.includes(actionIntent.action)) {
+      session.pendingAction = actionIntent;
+      const confirmKeyboard = new InlineKeyboard()
+        .text('✅ Ya, Lanjutkan', 'confirm_action')
+        .text('❌ Batalkan', 'cancel_action');
+      await ctx.reply(`🎙️ *Perintah Suara Terdeteksi*\n\n📌 Aksi: \`${actionIntent.action}\`\n${actionIntent.name ? `📝 Nama: ${actionIntent.name}` : ''}${actionIntent.sku ? `📦 Produk: ${actionIntent.sku}` : ''}\n\nLanjutkan?`, { parse_mode: 'Markdown', reply_markup: confirmKeyboard });
+      return;
+    }
+
+    if (actionIntent && actionIntent.action !== 'CHAT') {
+      // Product-based action — redirect to confirmation flow
+      const allProducts2 = await db.select().from(products);
+      const p = allProducts2.find((x: any) =>
+        x.sku.toLowerCase().includes((actionIntent.sku || '').toLowerCase()) ||
+        x.name.toLowerCase().includes((actionIntent.sku || '').toLowerCase())
+      );
+      if (p) {
+        session.pendingAction = actionIntent;
+        const confirmKeyboard = new InlineKeyboard()
+          .text('✅ Ya, Lanjutkan', 'confirm_action')
+          .text('❌ Batalkan', 'cancel_action');
+        await ctx.reply(`🎙️ *Perintah Suara Terdeteksi*\n\n📌 Aksi: \`${actionIntent.action}\`\n📦 Produk: *${p.name}*\n🔢 Qty: ${actionIntent.qty || '-'}\n\nLanjutkan?`, { parse_mode: 'Markdown', reply_markup: confirmKeyboard });
+        return;
+      }
+    }
+
+    // If CHAT or no action detected, respond with AI chat
+    const chatCompletion = await groq.chat.completions.create({
+      messages: [
+        { role: 'system', content: 'Anda asisten AI SCM Kaos Kami. User baru saja mengirim pesan suara. Jawab dengan singkat dan ramah dalam bahasa Indonesia.' },
+        ...session.contextMessages.slice(-5).map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),
+      ],
+      model: 'llama-3.1-8b-instant',
+      temperature: 0.7,
+      max_tokens: 500,
+    });
+
+    const aiReply = chatCompletion.choices[0]?.message?.content || 'Maaf, saya tidak mengerti pesan suara tersebut.';
+    session.contextMessages.push({ role: 'assistant', content: aiReply });
+    await ctx.reply(aiReply, { parse_mode: 'Markdown', reply_markup: followUpGeneral });
+
+  } catch (error: any) {
+    console.error('Voice Bot Error:', error);
+    await ctx.reply('❌ Gagal memproses pesan suara. Coba kirim ulang atau ketik pesan teks.', { reply_markup: followUpGeneral });
+  }
+});
+
 export const POST = webhookCallback(bot, 'std/http');
 export const GET = async () => new Response('Telegram webhook is running', { status: 200 });

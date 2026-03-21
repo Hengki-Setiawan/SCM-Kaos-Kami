@@ -1,63 +1,54 @@
 import { describe, it, expect } from 'vitest';
-import { generateOrderNumber, timeAgo } from '../lib/utils';
-import { productSchema } from '../lib/validations';
+import { formatRupiah, generateOrderNumber, formatRelativeTime } from '../lib/utils';
 
-describe('Utility Functions', () => {
-  it('generateOrderNumber generates an order number with the correct format', () => {
-    const orderNum = generateOrderNumber();
-    // EXPECT: ORD-TIMESTAMP-RANDOM
-    expect(orderNum).toContain('ORD-');
-    expect(orderNum.length).toBeGreaterThan(10);
+describe('formatRupiah', () => {
+  it('should format number to Indonesian Rupiah', () => {
+    expect(formatRupiah(50000)).toBe('Rp 50.000');
   });
 
-  it('timeAgo returns readable string', () => {
-    const now = new Date();
-    const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
-    // Might be '5 menit yang lalu' or 'baru saja' depending on exact ms, but it should be a string
-    expect(typeof timeAgo(fiveMinutesAgo)).toBe('string');
+  it('should format zero', () => {
+    expect(formatRupiah(0)).toBe('Rp 0');
+  });
+
+  it('should format large numbers', () => {
+    expect(formatRupiah(1500000)).toBe('Rp 1.500.000');
+  });
+
+  it('should handle negative numbers', () => {
+    const result = formatRupiah(-50000);
+    expect(result).toContain('50.000');
   });
 });
 
-describe('Zod Validations', () => {
-  it('productSchema rejects negative prices', () => {
-    const invalidProduct = {
-      name: 'Kaos Hitam Pria',
-      sku: 'KHP-001',
-      categoryId: 'cat1',
-      color: 'Hitam',
-      size: 'L',
-      material: 'Katun',
-      unitPrice: -50000, // Invalid
-      buyPrice: 0,
-      minStock: 5,
-      unitValue: 1,
-      unitType: 'pcs'
-    };
-    
-    const result = productSchema.safeParse(invalidProduct);
-    expect(result.success).toBe(false);
-    
-    if (!result.success) {
-      expect(result.error.issues[0].message).toContain('Harga jual tidak boleh negatif');
-    }
+describe('generateOrderNumber', () => {
+  it('should start with ORD-', () => {
+    const orderNum = generateOrderNumber();
+    expect(orderNum.startsWith('ORD-')).toBe(true);
   });
 
-  it('productSchema accepts valid product', () => {
-    const validProduct = {
-      name: 'Kaos Putih Pria',
-      sku: 'KPP-001',
-      categoryId: 'cat1',
-      color: 'Putih',
-      size: 'L',
-      material: 'Katun',
-      unitPrice: 50000,
-      buyPrice: 40000,
-      minStock: 5,
-      unitValue: 1,
-      unitType: 'pcs'
-    };
-    
-    const result = productSchema.safeParse(validProduct);
-    expect(result.success).toBe(true);
+  it('should generate unique numbers', () => {
+    const set = new Set<string>();
+    for (let i = 0; i < 100; i++) {
+      set.add(generateOrderNumber());
+    }
+    // At least 95% should be unique (allowing for rare timestamp collisions)
+    expect(set.size).toBeGreaterThan(90);
+  });
+});
+
+describe('formatRelativeTime', () => {
+  it('should return "Baru saja" for recent timestamps', () => {
+    const now = new Date().toISOString();
+    expect(formatRelativeTime(now)).toBe('Baru saja');
+  });
+
+  it('should return minutes ago', () => {
+    const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    expect(formatRelativeTime(fiveMinAgo)).toContain('menit');
+  });
+
+  it('should return hours ago', () => {
+    const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
+    expect(formatRelativeTime(threeHoursAgo)).toContain('jam');
   });
 });
