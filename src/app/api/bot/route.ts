@@ -575,6 +575,7 @@ bot.on('message:text', async (ctx) => {
       
       if (!p) {
         await ctx.reply(`❌ Produk "${actionIntent.sku}" tidak ditemukan.`, { reply_markup: mainMenu });
+        session.contextMessages = []; // Mencegah LLM stuck pada intent ini di pesan berikutnya
         return;
       }
 
@@ -677,8 +678,10 @@ bot.callbackQuery('confirm_action', async (ctx) => {
     } else {
       await ctx.editMessageText(result?.message || '✅ Aksi berhasil dieksekusi!', { parse_mode: 'Markdown' });
     }
+    session.contextMessages = []; // Bersihkan riwayat setelah aksi berhasil
   } catch (e) {
     session.pendingAction = undefined;
+    session.contextMessages = []; // Bersihkan riwayat jika error
     await ctx.editMessageText('❌ Gagal mengeksekusi aksi.');
   }
 });
@@ -687,6 +690,7 @@ bot.callbackQuery('cancel_action', async (ctx) => {
   await ctx.answerCallbackQuery('Dibatalkan.');
   const session = getSession(ctx.chat?.id || 0);
   session.pendingAction = undefined;
+  session.contextMessages = []; // Bersihkan riwayat ketika dibatalkan agar tidak terulang
   await ctx.editMessageText('❌ Aksi dibatalkan.');
 });
 
