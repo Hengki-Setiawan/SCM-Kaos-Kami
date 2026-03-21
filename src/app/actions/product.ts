@@ -58,18 +58,31 @@ export async function deleteProduct(productId: string) {
 
 export async function updateProductDetails(productId: string, data: any) {
   try {
-    // Only update fields that exist in our schema that we care about from the client
-    const updatableFields = [
+    if (data.unit) {
+      data.unitType = data.unit;
+    }
+    
+    const validated = productSchema.partial().safeParse(data);
+    if (!validated.success) {
+      return { success: false, error: 'Validasi data gagal: ' + validated.error.issues[0].message };
+    }
+
+    const validData = validated.data;
+    const updatableFields: (keyof typeof validData)[] = [
       'name', 'sku', 'categoryId', 'color', 'size', 'material', 
-      'thickness', 'sleeveType', 'variantType', 'unit', 'unitPrice', 
-      'buyPrice', 'isActive', 'imageUrl'
+      'thickness', 'sleeveType', 'unitType', 'unitPrice', 
+      'buyPrice', 'imageUrl', 'minStock'
     ];
     
     const updatePayload: any = { updatedAt: new Date().toISOString() };
     
+    // Also allow isActive which is usually boolean but might not be in productSchema
+    if (data.isActive !== undefined) updatePayload.isActive = Boolean(data.isActive);
+    if (validData.unitType !== undefined) updatePayload.unit = validData.unitType;
+    
     for (const key of updatableFields) {
-      if (data[key] !== undefined) {
-        updatePayload[key] = data[key];
+      if (validData[key] !== undefined && key !== 'unitType') {
+        updatePayload[key] = validData[key];
       }
     }
 

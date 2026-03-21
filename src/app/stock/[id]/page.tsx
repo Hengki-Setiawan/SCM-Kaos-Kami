@@ -5,6 +5,23 @@ import ProductDetailClient from './ProductDetailClient';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
+import type { Metadata } from 'next';
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const [product] = await db.select().from(products).where(eq(products.id, id));
+  if (!product) return { title: 'Produk Tidak Ditemukan' };
+
+  return {
+    title: `${product.name} (${product.sku})`,
+    description: `Detail produk ${product.name}. Stok saat ini: ${product.currentStock}. Harga: Rp ${product.unitPrice?.toLocaleString('id-ID')}`,
+    openGraph: {
+      title: `${product.name} | Kaos Kami SCM`,
+      images: product.imageUrl ? [product.imageUrl] : [],
+    }
+  };
+}
+
 export default async function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 

@@ -114,6 +114,31 @@ bot.command('start', async (ctx) => {
   );
 });
 
+// ==================== /chart & /export ====================
+bot.command('chart', async (ctx) => {
+  ctx.message = { text: '📈 Laporan' } as any;
+  await bot.handleUpdate(ctx.update);
+});
+
+bot.command('export', async (ctx) => {
+  if ((ctx as any).session?.role !== 'admin') {
+    return ctx.reply('🚫 Fitur Export hanya dapat diakses oleh Admin.');
+  }
+  const msg = await ctx.reply('⏳ Menyiapkan dokumen ekspor...');
+  try {
+    const all = await db.select().from(products);
+    let csv = 'SKU,Nama,Kategori,Harga Beli,Harga Jual,Stok Saat Ini,Min Stok\n';
+    all.forEach(p => { csv += `"${p.sku}","${p.name}","${p.categoryId}",${p.buyPrice || 0},${p.unitPrice || 0},${p.currentStock},${p.minStock}\n`; });
+    
+    const buffer = Buffer.from(csv, 'utf-8');
+    const d = new Date().toISOString().split('T')[0];
+    await ctx.replyWithDocument(new InputFile(buffer, `Laporan_Stok_SCM_${d}.csv`));
+    await ctx.api.deleteMessage(ctx.chat.id, msg.message_id);
+  } catch (e) {
+    await ctx.api.editMessageText(ctx.chat.id, msg.message_id, '❌ Gagal menggenerate dokumen CSV.');
+  }
+});
+
 // ==================== 📦 CEK STOK ====================
 bot.hears('📦 Cek Stok', async (ctx) => {
   try {
