@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import useSWR from 'swr';
+import Link from 'next/link';
 import { Plus, Zap } from 'lucide-react';
 import { updateStock, updateMinStock } from '../actions/stock';
 import { deleteProduct, deleteProductsBulk } from '../actions/product';
