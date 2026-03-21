@@ -101,7 +101,7 @@ export async function GET(req: Request) {
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     
     // cleanup alerts
-    await db.delete(alerts).where(lte(alerts.createdAt, thirtyDaysAgo));
+    await db.delete(alerts).where(lte(alerts.createdAt, thirtyDaysAgo.toISOString()));
     // cleanup audit logs if exists (stock movements) - actually movement is important so keep it.
     // but alerts can be cleaned.
 
