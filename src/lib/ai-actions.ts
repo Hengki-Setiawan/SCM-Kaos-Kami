@@ -20,6 +20,7 @@ export async function parseAndExecuteAIAction(text: string, source: 'web' | 'tel
       - "DEDUCT_STOCK" (jika user bilang "kurangi stok", "jual")
       - "ADD_STOCK" (jika user bilang "tambah stok", "restock", "beli barang")
       - "UPDATE_STOCK" (jika user bilang "ubah stok jadi X", "set stok")
+      - "DELETE_PRODUCT" (jika user bilang "hapus produk", "hilangkan barang", "hapus dari database")
       - "CHAT" (jika user sekadar bertanya stok, minta saran, hitung harga, ngobrol)
 
       Return STRICTLY valid JSON format: 
@@ -135,7 +136,20 @@ export async function parseAndExecuteAIAction(text: string, source: 'web' | 'tel
        }
     }
 
-    return { message: summary, undoToken };
+    // Aksi DELETE PRODUCT
+    if (intent.action === 'DELETE_PRODUCT') {
+       try {
+         await db.transaction(async (tx) => {
+           await tx.delete(stockMovements).where(eq(stockMovements.productId, p.id));
+           await tx.delete(products).where(eq(products.id, p.id));
+         });
+         summary = `🗑️ *Produk Berhasil Dihapus*\n\nProduk ${p.name} (${p.sku}) beserta riwayat pergerakan stoknya telah dihapus permanen dari sistem.`;
+       } catch (error) {
+         return { message: `❌ *Penghapusan Gagal*\n\nProduk ${p.name} tidak dapat dihapus karena masih terhubung dengan salah satu Pesanan (Orders) aktif.` };
+       }
+    }
+
+    return { message: summary, undoToken: intent.action === 'DELETE_PRODUCT' ? null : undoToken };
 
   } catch (error) {
     console.error('AI Action Parse Error:', error);

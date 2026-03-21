@@ -594,6 +594,8 @@ bot.on('message:text', async (ctx) => {
       } else if (actionIntent.action === 'PROCESS_ORDER') {
         newStock = Math.max(0, p.currentStock - (actionIntent.qty || 1));
         preview = `📦 *Proses Pengiriman*\n\n📦 ${p.name}\nDikirim: *${actionIntent.qty || 1}* pcs\nSisa: *${newStock}*\n_(+ auto-deduct packaging)_`;
+      } else if (actionIntent.action === 'DELETE_PRODUCT') {
+        preview = `🗑️ *Hapus Produk Permanen*\n\n📦 ${p.name}\nSKU: ${p.sku}\nSeluruh sisa stok (*${p.currentStock}*) dan riwayat stok akan dihancurkan. Tindakan ini tidak bisa dibatalkan!\n_(Catatan: Akan gagal jika barang ada dalam data pesanan)_`;
       }
 
       // Simpan pending action
@@ -668,6 +670,7 @@ bot.callbackQuery('confirm_action', async (ctx) => {
     else if (action.action === 'ADD_STOCK') cmdText = `tambah stok ${action.sku} ${action.qty}`;
     else if (action.action === 'UPDATE_STOCK') cmdText = `ubah stok ${action.sku} jadi ${action.qty}`;
     else if (action.action === 'PROCESS_ORDER') cmdText = `kirim ${action.qty || 1} paket ${action.sku}`;
+    else if (action.action === 'DELETE_PRODUCT') cmdText = `hapus barang ${action.sku}`;
 
     const result = await parseAndExecuteAIAction(cmdText, 'telegram', session.contextMessages);
     session.pendingAction = undefined;
@@ -750,7 +753,7 @@ async function parseAIIntent(text: string, contextMessages: {role: string, conte
     const catalogStr = allProd.map(p => `[SKU: ${p.sku}] ${p.name}`).join('\\n');
     let ctxStr = contextMessages.map(m => `${m.role}: ${m.content}`).join('\\n');
     
-    const systemContent = `Anda menganalisis pesan dan return JSON. PENTING: Untuk perintah ganti stok, set stok, ubah stok jadi X, pastikan mengembalikan 'UPDATE_STOCK' dengan qty berisi angka tersebut.\\nActions: "PROCESS_ORDER","DEDUCT_STOCK","ADD_STOCK","UPDATE_STOCK","LOG_EXPENSE","CHAT".\\n"LOG_EXPENSE" butuh field "title" (string) dan "category" (gaji/bahanbaku/sewa/iklan/operasional).\\nFormat: {"action":"TIPE","sku":"namasku","qty":angka,"title":"...","category":"..."}. Jika hanya ngobrol kembalikan "CHAT".\\n\\n⚡ SANGAT PENTING: Jika mengembalikan aksi gudang (bukan expense), cocokkan barang yang diminta user dengan KATALOG INI:\\n${catalogStr}\\n\\nIsi field "sku" di JSON dengan *SKU persis* atau *Nama persis* dari katalog di atas yang paling cocok!\\n\\nKonteks Percakapan Sebelumnya: \\n${ctxStr}\\n\\nPesan Saat Ini: "${text}"`;
+    const systemContent = `Anda menganalisis pesan dan return JSON. PENTING: Untuk perintah ganti stok, set stok, ubah stok jadi X, pastikan mengembalikan 'UPDATE_STOCK' dengan qty berisi angka tersebut.\\nActions: "PROCESS_ORDER","DEDUCT_STOCK","ADD_STOCK","UPDATE_STOCK","DELETE_PRODUCT","LOG_EXPENSE","CHAT".\\n"LOG_EXPENSE" butuh field "title" (string) dan "category" (gaji/bahanbaku/sewa/iklan/operasional).\\nFormat: {"action":"TIPE","sku":"namasku","qty":angka,"title":"...","category":"..."}. Jika hanya ngobrol kembalikan "CHAT".\\n\\n⚡ SANGAT PENTING: Jika mengembalikan aksi gudang (bukan expense), cocokkan barang yang diminta user dengan KATALOG INI:\\n${catalogStr}\\n\\nIsi field "sku" di JSON dengan *SKU persis* atau *Nama persis* dari katalog di atas yang paling cocok!\\n\\nKonteks Percakapan Sebelumnya: \\n${ctxStr}\\n\\nPesan Saat Ini: "${text}"`;
     
     const completion = await groq.chat.completions.create({
       messages: [{ role: 'system', content: systemContent }],
