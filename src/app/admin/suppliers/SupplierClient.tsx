@@ -60,7 +60,7 @@ export default function SupplierClient({ initialSuppliers }: { initialSuppliers:
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' }}>
         {suppliers.map((s) => (
           <div key={s.id} className="glass-card flex flex-col gap-4">
             <div className="flex justify-between items-start">
@@ -78,7 +78,7 @@ export default function SupplierClient({ initialSuppliers }: { initialSuppliers:
               </button>
             </div>
 
-            <div className="space-y-2 mt-2">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem' }}>
               <div className="flex items-center gap-2 text-xs text-muted">
                 <Phone size={14} /> {s.phone || '-'}
               </div>
@@ -87,7 +87,7 @@ export default function SupplierClient({ initialSuppliers }: { initialSuppliers:
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 mt-4">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginTop: '1rem' }}>
                <div className="p-3 rounded-xl text-center" style={{ background: 'rgba(255,255,255,0.05)' }}>
                   <span className="block text-[10px] text-muted mb-1">Total Transaksi</span>
                   <span className="font-bold">{s.totalTransactions}x</span>
@@ -101,7 +101,7 @@ export default function SupplierClient({ initialSuppliers }: { initialSuppliers:
         ))}
 
         {suppliers.length === 0 && (
-          <div className="col-span-full py-20 text-center text-muted border-2 border-dashed border-white/5 rounded-3xl">
+          <div style={{ gridColumn: '1 / -1', padding: '5rem 0', textAlign: 'center', color: 'rgb(var(--muted))', border: '2px dashed rgba(255,255,255,0.05)', borderRadius: '1.5rem' }}>
             <Users size={48} className="mx-auto mb-4 opacity-20" />
             <p>Belum ada database supplier.</p>
           </div>
@@ -110,9 +110,9 @@ export default function SupplierClient({ initialSuppliers }: { initialSuppliers:
 
       {isModalOpen && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-lg glass-card animate-in fade-in zoom-in duration-200">
+          <div className="w-full glass-card" style={{ maxWidth: '32rem' }}>
             <h2 className="text-xl font-bold mb-6">Tambah Supplier Baru</h2>
-            <form onSubmit={handleCreate} className="space-y-4">
+            <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div>
                 <label className="text-xs text-muted block mb-1">Nama Supplier *</label>
                 <input 
@@ -121,7 +121,7 @@ export default function SupplierClient({ initialSuppliers }: { initialSuppliers:
                   placeholder="Contoh: PT. Kain Jaya"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div>
                   <label className="text-xs text-muted block mb-1">PIC (Orang Luar)</label>
                   <input 

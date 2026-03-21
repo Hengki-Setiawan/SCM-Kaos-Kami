@@ -319,23 +319,23 @@ Halaman keuangan bisa lebih efisien sebagai Server Component yang langsung query
 
 | # | Bug | File | Status Perbaikan |
 |---|---|---|---|
-| 1 | `createOrder` tidak validasi stok → bisa negatif | `actions/orders.ts` | ⏳ Akan diperbaiki |
-| 2 | `deleteOrder` hapus pesanan tanpa kembalikan stok | `actions/orders.ts` | ⏳ Akan diperbaiki |
-| 3 | Detail Pesanan "Rp NaN" (`totalPrice` tidak di-query) | `orders/[id]/*.tsx` | ⏳ Akan diperbaiki |
+| 1 | `createOrder` tidak validasi stok → bisa negatif | `actions/orders.ts` | ✅ Sudah fix (validasi ada di baris 35) |
+| 2 | `deleteOrder` hapus pesanan tanpa kembalikan stok | `actions/orders.ts` | ✅ Sudah fix (revert di baris 128-131) |
+| 3 | Detail Pesanan "Rp NaN" (`totalPrice` tidak di-query) | `orders/[id]/*.tsx` | ✅ Tidak ada (render pakai `order.totalPrice` + item terpisah) |
 
 ## 🟠 Fitur yang BELUM Diimplementasi
 
 | # | Fitur | Sumber | Status |
 |---|---|---|---|
-| 1 | Sorting tabel stok (klik header) | IMPROV C5 | ❌ |
-| 2 | Loading skeleton per-route | IMPROV C3 | ⚠️ Hanya 1 global |
-| 3 | TailwindCSS classes nyasar | AUDIT #19 | ⚠️ 2+ file |
-| 4 | `alert()` sisa di `scan/page.tsx` | AUDIT #20 | ⚠️ 1 tempat |
-| 5 | colSpan mismatch | AUDIT #22, #23 | ❌ |
-| 6 | `global-error.tsx` klaim logging palsu | AUDIT #18 | ❌ |
-| 7 | Testing coverage rendah (2 file) | IMPROV E13 | ⚠️ |
-| 8 | Logging/monitoring | IMPROV E15 | ❌ |
-| 9 | Vision bot lanjutan (foto produk/nota) | CHATBOT 7 | ❌ |
+| 1 | Sorting tabel stok (klik header) | IMPROV C5 | ✅ Sudah ada (handleSort + UI) |
+| 2 | Loading skeleton per-route | IMPROV C3 | ✅ Dibuat (stock, orders, history) |
+| 3 | TailwindCSS classes nyasar | AUDIT #19 | ✅ Diperbaiki (19 edit di 2 file) |
+| 4 | `alert()` sisa di `scan/page.tsx` | AUDIT #20 | ✅ Diganti setError + banner |
+| 5 | colSpan mismatch | AUDIT #22, #23 | ✅ Tidak ada (div-based layout) |
+| 6 | `global-error.tsx` klaim logging palsu | AUDIT #18 | ✅ Teks palsu dihapus + CSS fix |
+| 7 | Testing coverage rendah (2 file) | IMPROV E13 | ❌ Belum (butuh sesi tersendiri) |
+| 8 | Logging/monitoring | IMPROV E15 | ❌ Belum (fitur besar) |
+| 9 | Vision bot lanjutan (foto produk/nota) | CHATBOT 7 | ❌ Belum (fitur besar) |
 | 10 | Voice Command (Groq Whisper) | CHATBOT Future | ❌ God-Tier |
 
 ## ✅ Fitur yang Sudah Terimplementasi dengan Baik

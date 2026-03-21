@@ -68,16 +68,16 @@ export default function VariantGenerator({ categories, onClose }: { categories: 
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-2xl glass-card relative animate-in fade-in zoom-in duration-200 flex flex-col max-h-[90vh]">
+      <div className="w-full glass-card relative flex flex-col" style={{ maxWidth: '42rem', maxHeight: '90vh' }}>
         <div className="flex justify-between items-center mb-6">
-          <h2 className="flex items-center gap-2"><Zap className="text-yellow-400" /> Smart Variant Generator</h2>
+          <h2 className="flex items-center gap-2"><Zap style={{ color: '#facc15' }} /> Smart Variant Generator</h2>
           <button onClick={onClose} style={{ padding: '0.5rem', borderRadius: '50%' }} className="btn-ghost"><X size={20} /></button>
         </div>
 
         <div className="overflow-y-auto flex-1 pr-2 flex flex-col gap-6">
           {/* Base Info */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div style={{ gridColumn: '1 / -1' }}>
               <label className="text-xs text-muted block mb-1">Nama Dasar Produk (Contoh: Kaos Polos)</label>
               <input 
                 type="text" 
@@ -109,7 +109,7 @@ export default function VariantGenerator({ categories, onClose }: { categories: 
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div>
               <label className="text-xs text-muted block mb-1">Harga Beli (Satuan)</label>
               <input 
@@ -130,17 +130,17 @@ export default function VariantGenerator({ categories, onClose }: { categories: 
             </div>
           </div>
 
-          <hr className="border-white/5" />
+          <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.05)' }} />
 
           {/* Variants Options */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '2rem' }}>
             {/* Sizes */}
             <div>
               <label className="font-bold block mb-3 text-sm flex items-center gap-2">📐 Ukuran (Size)</label>
               <div className="flex flex-wrap gap-2 mb-3">
                 {sizes.map(s => (
                   <span key={s} className="flex items-center gap-2" style={{ padding: '0.25rem 0.75rem', background: 'rgba(var(--primary), 0.2)', color: 'rgb(var(--primary))', fontSize: '0.75rem', borderRadius: '999px' }}>
-                    {s} <button onClick={() => handleRemoveSize(s)} className="text-muted hover:text-danger bg-transparent border-none p-0 flex"><X size={12} /></button>
+                    {s} <button onClick={() => handleRemoveSize(s)} style={{ background: 'transparent', border: 'none', padding: 0, display: 'flex', cursor: 'pointer', color: 'rgb(var(--muted))' }}><X size={12} /></button>
                   </span>
                 ))}
               </div>
@@ -163,7 +163,7 @@ export default function VariantGenerator({ categories, onClose }: { categories: 
               <div className="flex flex-wrap gap-2 mb-3">
                 {colors.map(c => (
                   <span key={c} className="flex items-center gap-2" style={{ padding: '0.25rem 0.75rem', background: 'rgba(var(--accent), 0.2)', color: 'rgb(var(--accent))', fontSize: '0.75rem', borderRadius: '999px' }}>
-                    {c} <button onClick={() => handleRemoveColor(c)} className="text-muted hover:text-danger bg-transparent border-none p-0 flex"><X size={12} /></button>
+                    {c} <button onClick={() => handleRemoveColor(c)} style={{ background: 'transparent', border: 'none', padding: 0, display: 'flex', cursor: 'pointer', color: 'rgb(var(--muted))' }}><X size={12} /></button>
                   </span>
                 ))}
               </div>
@@ -182,9 +182,9 @@ export default function VariantGenerator({ categories, onClose }: { categories: 
           </div>
         </div>
 
-        <div className="mt-8 pt-4 border-t border-white/5 flex items-center justify-between">
+        <div style={{ marginTop: '2rem', paddingTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.05)' }} className="flex items-center justify-between">
           <div className="text-[10px] text-muted">
-            Estimasi: <span className="text-white font-bold">{sizes.length * colors.length}</span> varian akan dibuat.
+            Estimasi: <span style={{ fontWeight: 'bold' }}>{sizes.length * colors.length}</span> varian akan dibuat.
           </div>
           <div className="flex gap-3">
             <button onClick={onClose} className="btn btn-outline">Batal</button>
