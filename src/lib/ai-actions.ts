@@ -1,8 +1,156 @@
 import { db } from '@/db';
-import { products, stockMovements, autoDeductRules } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { products, stockMovements, autoDeductRules, categories, suppliers, orders, orderItems } from '@/db/schema';
+import { eq, desc } from 'drizzle-orm';
 import { Groq } from 'groq-sdk';
 import { v4 as uuidv4 } from 'uuid';
+
+// ==================== NON-PRODUCT CRUD ACTIONS ====================
+// Handles: CREATE_ORDER, DELETE_ORDER, UPDATE_ORDER_STATUS,
+//          CREATE_CATEGORY, DELETE_CATEGORY, CREATE_SUPPLIER, DELETE_SUPPLIER
+
+export async function executeNonProductAction(action: any) {
+  try {
+    // --- CATEGORY CRUD ---
+    if (action.action === 'CREATE_CATEGORY') {
+      const slug = (action.name || '').toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+      await db.insert(categories).values({
+        id: uuidv4(),
+        name: action.name,
+        slug: slug,
+        icon: action.icon || '📦',
+        description: action.description || null,
+      });
+      return { message: `✅ *Kategori Baru Ditambahkan!*\n\n${action.icon || '📦'} *${action.name}*\nSlug: \`${slug}\`` };
+    }
+
+    if (action.action === 'DELETE_CATEGORY') {
+      const allCats = await db.select().from(categories);
+      const cat = allCats.find(c =>
+        c.name.toLowerCase().includes((action.name || '').toLowerCase()) ||
+        c.slug.toLowerCase().includes((action.name || '').toLowerCase())
+      );
+      if (!cat) return { message: `❌ Kategori "${action.name}" tidak ditemukan.` };
+
+      // Cek apakah ada produk di kategori ini
+      const prodsInCat = await db.select().from(products).where(eq(products.categoryId, cat.id));
+      if (prodsInCat.length > 0) {
+        return { message: `❌ *Gagal Hapus Kategori*\n\nKategori "${cat.name}" masih memiliki *${prodsInCat.length} produk* di dalamnya. Pindahkan atau hapus produk tersebut terlebih dahulu.` };
+      }
+      await db.delete(categories).where(eq(categories.id, cat.id));
+      return { message: `🗑️ *Kategori "${cat.name}" Berhasil Dihapus*` };
+    }
+
+    // --- SUPPLIER CRUD ---
+    if (action.action === 'CREATE_SUPPLIER') {
+      await db.insert(suppliers).values({
+        id: uuidv4(),
+        name: action.name,
+        phone: action.phone || null,
+        contactPerson: action.contactPerson || null,
+        address: action.address || null,
+        notes: action.notes || null,
+      });
+      return { message: `✅ *Supplier Baru Ditambahkan!*\n\n👤 *${action.name}*${action.phone ? `\n📱 ${action.phone}` : ''}` };
+    }
+
+    if (action.action === 'DELETE_SUPPLIER') {
+      const allSuppliers = await db.select().from(suppliers);
+      const sup = allSuppliers.find(s =>
+        s.name.toLowerCase().includes((action.name || '').toLowerCase())
+      );
+      if (!sup) return { message: `❌ Supplier "${action.name}" tidak ditemukan.` };
+      await db.delete(suppliers).where(eq(suppliers.id, sup.id));
+      return { message: `🗑️ *Supplier "${sup.name}" Berhasil Dihapus*` };
+    }
+
+    // --- ORDER CRUD ---
+    if (action.action === 'CREATE_ORDER') {
+      // Get product for the order
+      const allProds = await db.select().from(products);
+      const p = allProds.find(x =>
+        x.sku.toLowerCase().includes((action.sku || '').toLowerCase()) ||
+        x.name.toLowerCase().includes((action.sku || '').toLowerCase())
+      );
+      if (!p) return { message: `❌ Produk "${action.sku}" tidak ditemukan untuk pesanan.` };
+
+      const qty = action.qty || 1;
+      if (p.currentStock < qty) {
+        return { message: `❌ Stok ${p.name} tidak cukup (sisa: ${p.currentStock}, diminta: ${qty}).` };
+      }
+
+      const orderId = uuidv4();
+      const orderNumber = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      const totalPrice = (p.unitPrice || 0) * qty;
+
+      await db.transaction(async (tx) => {
+        await tx.insert(orders).values({
+          id: orderId, orderNumber,
+          customerName: action.customerName || 'Pelanggan Telegram',
+          platform: action.platform || 'telegram',
+          status: 'processing', totalPrice,
+        });
+        await tx.insert(orderItems).values({
+          id: uuidv4(), orderId, productId: p.id,
+          quantity: qty, unitPrice: p.unitPrice || 0,
+        });
+        // Deduct stock
+        await tx.update(products).set({ currentStock: p.currentStock - qty }).where(eq(products.id, p.id));
+        await tx.insert(stockMovements).values({
+          id: uuidv4(), productId: p.id, type: 'OUT',
+          quantity: qty, reason: `Order ${orderNumber} via Telegram`,
+          createdBy: 'ai_telegram',
+        });
+      });
+
+      return { message: `✅ *Pesanan Baru Dibuat!*\n\n📋 No: \`${orderNumber}\`\n👤 ${action.customerName || 'Pelanggan Telegram'}\n📦 ${p.name} x${qty}\n💰 Rp ${new Intl.NumberFormat('id-ID').format(totalPrice)}\n📉 Sisa stok: ${p.currentStock - qty}` };
+    }
+
+    if (action.action === 'DELETE_ORDER') {
+      const allOrders = await db.select().from(orders).orderBy(desc(orders.createdAt));
+      const ord = allOrders.find(o =>
+        o.orderNumber.toLowerCase().includes((action.orderNumber || '').toLowerCase()) ||
+        o.customerName.toLowerCase().includes((action.orderNumber || '').toLowerCase())
+      );
+      if (!ord) return { message: `❌ Pesanan "${action.orderNumber}" tidak ditemukan.` };
+
+      // Return stock
+      const items = await db.select().from(orderItems).where(eq(orderItems.orderId, ord.id));
+      await db.transaction(async (tx) => {
+        for (const item of items) {
+          const [prod] = await tx.select().from(products).where(eq(products.id, item.productId));
+          if (prod) {
+            await tx.update(products).set({ currentStock: prod.currentStock + item.quantity }).where(eq(products.id, prod.id));
+          }
+        }
+        await tx.delete(orderItems).where(eq(orderItems.orderId, ord.id));
+        await tx.delete(orders).where(eq(orders.id, ord.id));
+      });
+      return { message: `🗑️ *Pesanan ${ord.orderNumber} Dihapus*\n\n👤 ${ord.customerName}\nStok yang terpotong telah dikembalikan.` };
+    }
+
+    if (action.action === 'UPDATE_ORDER_STATUS') {
+      const allOrders = await db.select().from(orders).orderBy(desc(orders.createdAt));
+      const ord = allOrders.find(o =>
+        o.orderNumber.toLowerCase().includes((action.orderNumber || '').toLowerCase()) ||
+        o.customerName.toLowerCase().includes((action.orderNumber || '').toLowerCase())
+      );
+      if (!ord) return { message: `❌ Pesanan "${action.orderNumber}" tidak ditemukan.` };
+
+      const validStatuses = ['pending', 'processing', 'shipped', 'completed', 'cancelled'];
+      const newStatus = (action.newStatus || '').toLowerCase();
+      if (!validStatuses.includes(newStatus)) {
+        return { message: `❌ Status "${action.newStatus}" tidak valid. Pilihan: ${validStatuses.join(', ')}` };
+      }
+      await db.update(orders).set({ status: newStatus, updatedAt: new Date().toISOString() }).where(eq(orders.id, ord.id));
+      return { message: `✅ *Status Pesanan Diperbarui*\n\n📋 ${ord.orderNumber}\n👤 ${ord.customerName}\n📌 ${ord.status} → *${newStatus}*` };
+    }
+
+    return { message: '❌ Aksi tidak dikenali.' };
+  } catch (error: any) {
+    console.error('Non-Product Action Error:', error);
+    return { message: `❌ Gagal mengeksekusi: ${error.message || 'Kesalahan tidak diketahui'}` };
+  }
+}
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 

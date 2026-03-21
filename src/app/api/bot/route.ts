@@ -1,6 +1,6 @@
 import { Bot, webhookCallback, InlineKeyboard, Keyboard, InputFile } from 'grammy';
 import { db } from '@/db';
-import { products, orders, stockMovements, categories, telegramUsers, expenses } from '@/db/schema';
+import { products, orders, stockMovements, categories, telegramUsers, expenses, suppliers, orderItems } from '@/db/schema';
 import { desc, eq, sql, lte, gte, and } from 'drizzle-orm';
 import { Groq } from 'groq-sdk';
 import { v4 as uuidv4 } from 'uuid';
@@ -565,6 +565,35 @@ bot.on('message:text', async (ctx) => {
        return;
     }
 
+    // === NON-PRODUCT CRUD ACTIONS (Categories, Suppliers, Orders) ===
+    const NON_PRODUCT_ACTIONS = ['CREATE_CATEGORY', 'DELETE_CATEGORY', 'CREATE_SUPPLIER', 'DELETE_SUPPLIER', 'CREATE_ORDER', 'DELETE_ORDER', 'UPDATE_ORDER_STATUS'];
+    if (actionIntent && NON_PRODUCT_ACTIONS.includes(actionIntent.action)) {
+      let preview = '';
+      
+      if (actionIntent.action === 'CREATE_CATEGORY') {
+        preview = `📁 *Tambah Kategori Baru*\n\n${actionIntent.icon || '📦'} Nama: *${actionIntent.name}*`;
+      } else if (actionIntent.action === 'DELETE_CATEGORY') {
+        preview = `🗑️ *Hapus Kategori*\n\n📁 Nama: *${actionIntent.name}*\n\n⚠️ Kategori hanya bisa dihapus jika tidak ada produk di dalamnya!`;
+      } else if (actionIntent.action === 'CREATE_SUPPLIER') {
+        preview = `👤 *Tambah Supplier Baru*\n\n🏪 Nama: *${actionIntent.name}*${actionIntent.phone ? `\n📱 Telp: ${actionIntent.phone}` : ''}`;
+      } else if (actionIntent.action === 'DELETE_SUPPLIER') {
+        preview = `🗑️ *Hapus Supplier*\n\n🏪 Nama: *${actionIntent.name}*\n\nData supplier akan dihapus permanen!`;
+      } else if (actionIntent.action === 'CREATE_ORDER') {
+        preview = `📋 *Buat Pesanan Baru*\n\n👤 Pelanggan: *${actionIntent.customerName || 'Pelanggan Telegram'}*\n📦 Produk: ${actionIntent.sku}\n🔢 Qty: ${actionIntent.qty || 1}\n🏪 Platform: ${actionIntent.platform || 'telegram'}\n\n_Stok akan otomatis dikurangi._`;
+      } else if (actionIntent.action === 'DELETE_ORDER') {
+        preview = `🗑️ *Hapus Pesanan*\n\n📋 No/Nama: *${actionIntent.orderNumber}*\n\n⚠️ Stok yang sudah dipotong akan dikembalikan!`;
+      } else if (actionIntent.action === 'UPDATE_ORDER_STATUS') {
+        preview = `📌 *Ubah Status Pesanan*\n\n📋 No/Nama: *${actionIntent.orderNumber}*\n📌 Status baru: *${actionIntent.newStatus}*`;
+      }
+
+      session.pendingAction = actionIntent;
+      const confirmKeyboard = new InlineKeyboard()
+        .text('✅ Ya, Lanjutkan', 'confirm_action')
+        .text('❌ Batalkan', 'cancel_action');
+      await ctx.reply(`⚠️ ${preview}\n\nLanjutkan?`, { parse_mode: 'Markdown', reply_markup: confirmKeyboard });
+      return;
+    }
+
     if (actionIntent && actionIntent.action !== 'CHAT') {
       // Tampilkan KONFIRMASI, jangan langsung eksekusi
       const allProducts = await db.select().from(products);
@@ -663,6 +692,17 @@ bot.callbackQuery('confirm_action', async (ctx) => {
       return;
     }
 
+    // === NON-PRODUCT CRUD ACTIONS ===
+    const NON_PRODUCT_ACTIONS = ['CREATE_CATEGORY', 'DELETE_CATEGORY', 'CREATE_SUPPLIER', 'DELETE_SUPPLIER', 'CREATE_ORDER', 'DELETE_ORDER', 'UPDATE_ORDER_STATUS'];
+    if (NON_PRODUCT_ACTIONS.includes(action.action)) {
+      const { executeNonProductAction } = await import('@/lib/ai-actions');
+      const result = await executeNonProductAction(action);
+      session.pendingAction = undefined;
+      session.contextMessages = [];
+      await ctx.editMessageText(result?.message || '✅ Aksi berhasil!', { parse_mode: 'Markdown' });
+      return;
+    }
+
     const { parseAndExecuteAIAction } = await import('@/lib/ai-actions');
     // Reconstruct the original command text for the parser
     let cmdText = '';
@@ -753,7 +793,7 @@ async function parseAIIntent(text: string, contextMessages: {role: string, conte
     const catalogStr = allProd.map(p => `[SKU: ${p.sku}] ${p.name}`).join('\\n');
     let ctxStr = contextMessages.map(m => `${m.role}: ${m.content}`).join('\\n');
     
-    const systemContent = `Anda menganalisis pesan dan return JSON. PENTING: Untuk perintah ganti stok, set stok, ubah stok jadi X, pastikan mengembalikan 'UPDATE_STOCK' dengan qty berisi angka tersebut.\\nActions: "PROCESS_ORDER","DEDUCT_STOCK","ADD_STOCK","UPDATE_STOCK","DELETE_PRODUCT","LOG_EXPENSE","CHAT".\\n"LOG_EXPENSE" butuh field "title" (string) dan "category" (gaji/bahanbaku/sewa/iklan/operasional).\\nFormat: {"action":"TIPE","sku":"namasku","qty":angka,"title":"...","category":"..."}. Jika hanya ngobrol kembalikan "CHAT".\\n\\n⚡ SANGAT PENTING: Jika mengembalikan aksi gudang (bukan expense), cocokkan barang yang diminta user dengan KATALOG INI:\\n${catalogStr}\\n\\nIsi field "sku" di JSON dengan *SKU persis* atau *Nama persis* dari katalog di atas yang paling cocok!\\n\\nKonteks Percakapan Sebelumnya: \\n${ctxStr}\\n\\nPesan Saat Ini: "${text}"`;
+    const systemContent = `Anda menganalisis pesan dan return JSON. Anda adalah SUPER ADMIN BOT — bisa melakukan SEMUA operasi CRUD pada seluruh database.\\nPENTING: Untuk perintah ganti stok, set stok, ubah stok jadi X, pastikan mengembalikan 'UPDATE_STOCK' dengan qty berisi angka tersebut.\\n\\nActions GUDANG (butuh field "sku"): "PROCESS_ORDER","DEDUCT_STOCK","ADD_STOCK","UPDATE_STOCK","DELETE_PRODUCT".\\nActions PESANAN (butuh field "orderNumber" dan/atau "customerName","sku","qty","platform","newStatus"): "CREATE_ORDER","DELETE_ORDER","UPDATE_ORDER_STATUS".\\nActions KATEGORI (butuh field "name","icon"): "CREATE_CATEGORY","DELETE_CATEGORY".\\nActions SUPPLIER (butuh field "name","phone"): "CREATE_SUPPLIER","DELETE_SUPPLIER".\\nActions BIAYA: "LOG_EXPENSE" (butuh field "title","category","qty" sebagai nominal Rp).\\nActions LAINNYA: "CHAT" (jika hanya ngobrol/bertanya).\\n\\nFormat JSON: {"action":"TIPE","sku":"namasku","qty":angka,"title":"...","category":"...","name":"...","icon":"...","phone":"...","orderNumber":"...","customerName":"...","platform":"...","newStatus":"..."}. Hanya isi field yang relevan. Jika hanya ngobrol kembalikan {"action":"CHAT"}.\\n\\n⚡ SANGAT PENTING: Jika mengembalikan aksi gudang, cocokkan barang yang diminta user dengan KATALOG INI:\\n${catalogStr}\\n\\nIsi field "sku" di JSON dengan *SKU persis* atau *Nama persis* dari katalog di atas yang paling cocok!\\n\\nKonteks Percakapan Sebelumnya: \\n${ctxStr}\\n\\nPesan Saat Ini: "${text}"`;
     
     const completion = await groq.chat.completions.create({
       messages: [{ role: 'system', content: systemContent }],

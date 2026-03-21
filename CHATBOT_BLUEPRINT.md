@@ -473,4 +473,34 @@ Bot Telegram diatur sebagai "God Account". Tidak perlu konfirmasi PIN untuk hal-
 - Kirim PDF tagihan/PDF laporan supplier: Bot akan membedah datanya menjadi teks CSV / Tabel di database.
 - Kirim foto rusak dari customer: Bot akan langsung mendaftarkan ke tabel "Retur/Keluhan" dan mengurangkan laba penjualan hari itu.
 
-> **Status Saat Ini:** Rencana ini telah diagendakan. Sistem dasar (seperti Parsing Intent, Konfirmasi Hapus Produk) sudah berjalan prima di kode `api/bot/route.ts` dan `ai-actions.ts`, dan siap diekspansi secara masif.
+> **Status Saat Ini:** ✅ **PHASE 12 TERIMPLEMENTASI!** Sistem dasar telah selesai di-build dan di-push ke GitHub.
+
+### ⚠️ 5. Konfirmasi Keselamatan Data (Safety Gate)
+Semua aksi yang mengubah atau menghancurkan data **SELALU** melewati dialog konfirmasi dengan tombol Inline Keyboard sebelum dieksekusi. Tidak ada aksi destruktif yang berjalan otomatis tanpa persetujuan Anda.
+
+| Tingkat Bahaya | Aksi | Konfirmasi |
+|---|---|---|
+| 🟢 Rendah | Tambah Stok, Tambah Kategori, Tambah Supplier | ✅ Konfirmasi 1x klik |
+| 🟡 Sedang | Kurangi Stok, Buat Pesanan, Catat Pengeluaran, Update Status | ✅ Konfirmasi 1x + Preview detail |
+| 🔴 Tinggi | Hapus Produk, Hapus Pesanan, Hapus Kategori, Hapus Supplier | ✅ Konfirmasi 1x + Peringatan bahaya + Preview |
+
+### 📊 6. Status Implementasi Clone Mode
+
+| Action | Deskripsi | Status |
+|---|---|---|
+| `DEDUCT_STOCK` | Kurangi stok barang | ✅ Aktif |
+| `ADD_STOCK` | Tambah stok barang | ✅ Aktif |
+| `UPDATE_STOCK` | Set stok ke angka tertentu | ✅ Aktif |
+| `PROCESS_ORDER` | Proses pengiriman + auto-deduct packaging | ✅ Aktif |
+| `DELETE_PRODUCT` | Hapus produk permanen | ✅ Aktif |
+| `LOG_EXPENSE` | Catat pengeluaran/biaya | ✅ Aktif |
+| `CREATE_ORDER` | Buat pesanan baru + auto-deduct stok | ✅ **BARU** |
+| `DELETE_ORDER` | Hapus pesanan + kembalikan stok | ✅ **BARU** |
+| `UPDATE_ORDER_STATUS` | Ubah status pesanan | ✅ **BARU** |
+| `CREATE_CATEGORY` | Tambah kategori produk baru | ✅ **BARU** |
+| `DELETE_CATEGORY` | Hapus kategori (jika kosong) | ✅ **BARU** |
+| `CREATE_SUPPLIER` | Tambah supplier baru | ✅ **BARU** |
+| `DELETE_SUPPLIER` | Hapus supplier | ✅ **BARU** |
+| `CHAT` | Percakapan AI biasa | ✅ Aktif |
+
+> **Total: 14 Actions Tersedia** — Bot Telegram Anda kini memiliki kendali penuh atas seluruh database SCM Kaos Kami!
