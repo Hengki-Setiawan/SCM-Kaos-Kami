@@ -2,7 +2,7 @@
 
 import { db } from '@/db';
 import { products, stockMovements } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, desc } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -50,5 +50,30 @@ export async function updateMinStock(productId: string, newValue: number) {
   } catch (error) {
     console.error('Failed to update min stock:', error);
     return { success: false, error: 'Gagal mengupdate batas minimum stok' };
+  }
+}
+
+export async function getStockMovements(limit = 50) {
+  try {
+    const logs = await db
+      .select({
+        id: stockMovements.id,
+        type: stockMovements.type,
+        quantity: stockMovements.quantity,
+        reason: stockMovements.reason,
+        referenceId: stockMovements.referenceId,
+        createdAt: stockMovements.createdAt,
+        productName: products.name,
+        productSku: products.sku,
+      })
+      .from(stockMovements)
+      .leftJoin(products, eq(stockMovements.productId, products.id))
+      .orderBy(desc(stockMovements.createdAt))
+      .limit(limit);
+
+    return { success: true, data: logs };
+  } catch (error: any) {
+    console.error('GET_STOCK_MOVEMENTS_ERROR', error);
+    return { success: false, error: 'Gagal mengambil log stok' };
   }
 }
