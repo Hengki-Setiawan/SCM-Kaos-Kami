@@ -1008,3 +1008,340 @@ Berikut saran fitur tambahan yang sudah ditambahkan ke blueprint:
 ---
 
 > **Note:** Blueprint ini adalah dokumen hidup. Semua fitur bisa ditambah/ubah/hapus kapan saja.
+
+---
+---
+
+# 🚀 KELANJUTAN BLUEPRINT — Phase 10: Premium Polish & Enterprise Optimization
+
+> Bagian ini adalah kelanjutan dari blueprint utama di atas. Semua fitur di atas (Fase 1–6) sudah **100% selesai dan berjalan**. Phase 10 ini mencakup perbaikan mendalam, optimasi performa, dan peningkatan visual agar software terasa kelas enterprise.
+
+---
+
+## 15. Audit Mendalam — Seluruh Elemen Interaktif (36 File Diperiksa)
+
+Audit level kode dilakukan terhadap **seluruh 36 file** di `src/app/` termasuk semua pages, API routes, server actions, dan komponen client. Setiap tombol, form, link, dan endpoint diperiksa apakah benar-benar terhubung dan berfungsi.
+
+### 15.1 Temuan Masalah — Diurutkan Berdasarkan Tingkat Keparahan
+
+#### 🔴 KRITIS (Diklik = Error / Tidak Terjadi Apa-apa)
+
+| No | File | Elemen | Masalah | Solusi |
+|----|------|--------|---------|--------|
+| 1 | `stock/page.tsx` L:33 | Tombol **"+ Tambah Produk"** | `<button>` MATI — tidak ada `onClick`, tidak ada redirect, tidak ada modal. Diklik = tidak terjadi apa-apa | Buat halaman `/stock/new` berisi form untuk insert produk baru ke database |
+| 2 | `stock/page.tsx` L:35 | Tombol **"Restock Cepat"** | `<button>` MATI — sama sekali tidak ada handler | Ubah ke `<Link href="/restock/po">` agar redirect ke halaman PO yang sudah ada |
+
+#### 🟠 TINGGI (Fitur Ada Tapi Tidak Tersambung / Menyesatkan)
+
+| No | File | Elemen | Masalah | Solusi |
+|----|------|--------|---------|--------|
+| 3 | `Topbar.tsx` L:22-26 | Tombol **🔔 Notifikasi** + Badge merah | Badge merah **selalu tampil** (hardcoded position absolute) meskipun tidak ada notifikasi. Diklik juga tidak terjadi apa-apa. User bisa mengira ada notifikasi padahal palsu | Sambungkan ke SWR polling `/api/dashboard/stats` → ambil `lowStockItems` → tampilkan angka real. Jika 0, sembunyikan badge. Klik → dropdown list low stock items |
+| 4 | `api/search/route.ts` | API endpoint `/api/search` | API endpoint ini sudah lengkap (cari produk, order, kategori) tapi **TIDAK ADA satupun komponen UI yang memanggilnya**. Topbar search sudah diubah jadi link ke `/stock`, bukan menggunakan API ini | Buat komponen `SearchDialog` yang memanfaatkan API ini. Klik search di Topbar → buka dialog/modal pencarian global yang menampilkan hasil real-time |
+| 5 | `orders/scan/page.tsx` L:129 | Tombol **"Buat Pesanan dengan Data Ini"** | Setelah scan resi berhasil, tombol ini link ke `/orders/new?name=...&platform=...`. Tapi `orders/new/page.tsx` (Server Component) **TIDAK membaca query params** dan `NewOrderForm.tsx` juga tidak pre-fill datanya. Artinya data scan resi terbuang sia-sia | Baca `searchParams` di `orders/new/page.tsx` → pass ke `NewOrderForm` sebagai `initialCustomerName` dan `initialPlatform` |
+
+#### 🟡 SEDANG (UX Buruk / Fitur Tidak Lengkap)
+
+| No | File | Elemen | Masalah | Solusi |
+|----|------|--------|---------|--------|
+| 6 | `BottomNav.tsx` | 5 ikon navigasi bawah (HP) | Hanya menampilkan emoji (🏠📦📋🤖📈) **tanpa label teks**. User harus menebak ikon apa yang dimaksud | Tambahkan label teks: "Home", "Stok", "Order", "Chat", "Analisis" di bawah setiap ikon |
+| 7 | `Sidebar.tsx` | 9 item menu navigasi | **Tidak ada visual indicator** halaman yang sedang aktif. User tidak tahu mereka sedang di halaman mana | Konversi ke Client Component (`usePathname`), tambah active highlight: garis kiri warna primary + background berubah |
+| 8 | `orders/[id]/page.tsx` | Halaman Detail Pesanan | Halaman ini **read-only** — tidak ada tombol untuk mengubah status, menghapus order, atau kembali scan resi. Hanya menampilkan data | Tambahkan dropdown ubah status (seperti di list) + tombol "Hapus Pesanan" (opsional) |
+
+#### ⚪ RENDAH (Missing Feature / Nice to Have)
+
+| No | File | Elemen | Masalah | Solusi |
+|----|------|--------|---------|--------|
+| 9 | Seluruh website | Fitur **Hapus** produk/order | Tidak ada tombol "Hapus" di mana pun. Produk dan pesanan hanya bisa ditambah dan diedit, tidak bisa dihapus | Tambah tombol Hapus + konfirmasi di halaman detail produk dan detail pesanan |
+| 10 | `DashboardClient.tsx` | "Aksi Cepat" panel | Semua link tombol sudah valid ✅, tapi panel ini **tidak ditampilkan di mobile** karena masuk grid `grid-cols-3` yang collapse jadi 1 kolom — panel ini tergeser ke bawah sangat jauh | Pindahkan panel "Aksi Cepat" ke posisi atas dalam layout mobile, atau buat fixed floating button |
+
+### 15.2 Elemen yang Sudah Berfungsi Sempurna ✅ (Konfirmasi Audit)
+
+| # | File | Elemen | Status |
+|---|------|--------|--------|
+| 1 | `DashboardClient.tsx` | Tombol "+ Pesanan Baru" | ✅ Redirect ke `/orders/new` |
+| 2 | `DashboardClient.tsx` | Tombol "📸 Scan Resi" | ✅ Redirect ke `/orders/scan` |
+| 3 | `DashboardClient.tsx` | Tombol "🤖 Tanya AI" | ✅ Redirect ke `/chat` |
+| 4 | `DashboardClient.tsx` | Tombol "📄 Buat Surat PO" | ✅ Redirect ke `/restock/po` (buka tab baru) |
+| 5 | `DashboardClient.tsx` | Semua "Aksi Cepat" links | ✅ Semua 5 link valid (PO, Stok, Analisis, Kalkulator, Setting) |
+| 6 | `DashboardClient.tsx` | Klik produk di "Peringatan Stok" | ✅ Redirect ke `/stock/{id}` (detail produk) |
+| 7 | `Topbar.tsx` | Tombol "🔍 Cari SKU..." | ✅ Redirect ke `/stock` (sudah diperbaiki sebelumnya) |
+| 8 | `stock/page.tsx` | Tombol "📄 Isi PO" | ✅ Redirect ke `/restock/po` (buka tab baru) |
+| 9 | `orders/page.tsx` | Tombol "📸 Scan Resi" | ✅ Redirect ke `/orders/scan` |
+| 10 | `orders/page.tsx` | Tombol "+ Pesanan Baru" | ✅ Redirect ke `/orders/new` |
+| 11 | `OrderListClient.tsx` | Dropdown ubah status pesanan | ✅ Server Action `updateOrderStatus` + auto-deduct packaging saat shipped |
+| 12 | `StockTableClient.tsx` | Semua tombol +/- stok inline | ✅ Server Action `updateStock` + `updateMinStock` + SWR real-time sync |
+| 13 | `ProductDetailClient.tsx` | Tombol "✏️ Edit Detail" → "Simpan" | ✅ Server Action `updateProductDetails` + upload foto ke Cloudinary |
+| 14 | `NewOrderForm.tsx` | Tombol "Buat Pesanan" | ✅ Server Action `createOrder` + auto-deduct stok produk utama |
+| 15 | `NewOrderForm.tsx` | Tombol "+ Tambah Produk Lain" & "🗑️" | ✅ Berfungsi (tambah/hapus baris item) |
+| 16 | `AutoDeductClient.tsx` | Tombol "Simpan Aturan" | ✅ Server Action `saveAutoDeductRule` |
+| 17 | `chat/page.tsx` | Form chat AI | ✅ POST `/api/chat` → Groq AI jawab |
+| 18 | `calculator/page.tsx` | Form kalkulator | ✅ POST `/api/calculator` → AI hitung HPP satuan |
+| 19 | `orders/scan/page.tsx` | Upload foto + tombol "Mulai Analisis" | ✅ Upload ke Cloudinary → POST `/api/vision` → Groq Vision OCR |
+| 20 | `orders/scan/page.tsx` | Tombol "Scan Ulang" | ✅ Reset state, bisa upload ulang |
+| 21 | `history/page.tsx` | Klik nama produk di log | ✅ Link ke `/stock/{id}` |
+| 22 | `settings/page.tsx` | Semua Quick Links (4 tombol) | ✅ Link ke Analisis, Kalkulator, Log Stok, Chat AI |
+| 23 | `restock/po/page.tsx` | Halaman PO + tombol "Cetak" | ✅ `window.print()` + CSS @media print |
+
+### 15.3 API Routes — Status Fungsionalitas
+
+| # | Endpoint | Method | Dipanggil Oleh | Status |
+|---|----------|--------|----------------|--------|
+| 1 | `/api/dashboard/stats` | GET | `DashboardClient.tsx` (SWR) | ✅ Aktif |
+| 2 | `/api/stock` | GET | `StockTableClient.tsx` (SWR) | ✅ Aktif |
+| 3 | `/api/chat` | POST | `chat/page.tsx` | ✅ Aktif |
+| 4 | `/api/calculator` | POST | `calculator/page.tsx` | ✅ Aktif |
+| 5 | `/api/upload` | POST | `scan/page.tsx`, `ProductDetailClient.tsx` | ✅ Aktif |
+| 6 | `/api/vision` | POST | `scan/page.tsx` | ✅ Aktif |
+| 7 | `/api/analysis` | GET | `analysis/page.tsx` | ✅ Aktif |
+| 8 | `/api/analysis/predictive` | GET | `analysis/page.tsx` | ✅ Aktif |
+| 9 | `/api/bot` | POST | Telegram Webhook | ✅ Aktif |
+| 10 | `/api/cron/stock-check` | GET | Vercel Cron / manual | ✅ Aktif |
+| 11 | `/api/search` | GET | ⚠️ **TIDAK DIGUNAKAN** — tidak ada komponen UI yang memanggil API ini | Orphaned |
+
+### 15.4 Server Actions — Status Fungsionalitas
+
+| # | Action | File | Dipanggil Oleh | Status |
+|---|--------|------|----------------|--------|
+| 1 | `updateStock()` | `actions/stock.ts` | `StockTableClient.tsx` | ✅ |
+| 2 | `updateMinStock()` | `actions/stock.ts` | `StockTableClient.tsx` | ✅ |
+| 3 | `createOrder()` | `actions/orders.ts` | `NewOrderForm.tsx` | ✅ |
+| 4 | `updateOrderStatus()` | `actions/orders.ts` | `OrderListClient.tsx` | ✅ |
+| 5 | `updateProductDetails()` | `actions/product.ts` | `ProductDetailClient.tsx` | ✅ |
+| 6 | `saveAutoDeductRule()` | `actions/settings.ts` | `AutoDeductClient.tsx` | ✅ |
+
+---
+
+## 16. Premium UI Redesign — Design System Overhaul
+
+### 16.1 Masalah Desain Saat Ini
+
+| Masalah | Detail |
+|---------|--------|
+| **Warna terlalu generik** | Hanya ungu standard (#7C3AED) + biru polos (#2563EB), tidak ada depth/variasi |
+| **Ikon semuanya emoji** | 📦📋🤖📈 → terlihat amatir dan tidak konsisten di berbagai OS/browser |
+| **Font default browser** | Menggunakan system-ui fallback tanpa tipografi kustom yang premium |
+| **Tidak ada micro-animation** | Kartu muncul tanpa transisi, perpindahan halaman terasa kaku |
+| **Tidak ada visual hierarchy** | Semua elemen memiliki bobot visual yang sama, tidak ada focal point |
+
+### 16.2 Rencana Perbaikan Detail
+
+#### A. Palet Warna Premium Baru
+
+```css
+/* SEBELUM (generik) */
+--primary: 124, 58, 237;     /* ungu biasa */
+--accent: 37, 99, 235;       /* biru polos */
+
+/* SESUDAH (premium depth) */
+--primary: 99, 102, 241;     /* Indigo-500 — lebih lembut, premium */
+--primary-hover: 79, 70, 229; /* Indigo-600 */
+--accent: 139, 92, 246;      /* Violet-500 — gradient partner */
+--accent-2: 14, 165, 233;    /* Sky-500 — secondary accent */
+--surface: 249, 250, 251;    /* Gray-50 — lebih bersih */
+```
+
+Gradien tombol utama berubah dari ungu-biru flat menjadi **Indigo → Violet** yang lebih modern dan premium.
+
+#### B. Tipografi — Google Fonts Inter
+
+| Elemen | Font Sebelum | Font Sesudah |
+|--------|-------------|--------------|
+| Heading (h1, h2) | system-ui (default browser) | **Inter** Bold 700 |
+| Body text | system-ui | **Inter** Regular 400 |
+| Angka/Statistik | system-ui | **Inter** Black 900 (tabular nums) |
+| Code/SKU | monospace default | **JetBrains Mono** |
+
+Import via `next/font/google` di `layout.tsx` untuk performa optimal (no FOUT/FOIT).
+
+#### C. Icon Library — Lucide React (SVG)
+
+Mengganti SEMUA emoji ikon di seluruh aplikasi dengan **Lucide React** SVG icons:
+
+| Lokasi | Sebelum (Emoji) | Sesudah (Lucide SVG) |
+|--------|-----------------|---------------------|
+| Sidebar: Dashboard | 📊 | `<LayoutDashboard />` |
+| Sidebar: Stok | 📦 | `<Package />` |
+| Sidebar: Pesanan | 📋 | `<ClipboardList />` |
+| Sidebar: AI Chat | 🤖 | `<Bot />` |
+| Sidebar: Analisis | 📈 | `<TrendingUp />` |
+| Sidebar: Kalkulator | 🧮 | `<Calculator />` |
+| Sidebar: Riwayat | 📜 | `<History />` |
+| Sidebar: Scan Resi | 📸 | `<ScanLine />` |
+| Sidebar: Setting | ⚙️ | `<Settings />` |
+| Stat Card: Produk | (teks saja) | `<Boxes />` |
+| Stat Card: Gudang | (teks saja) | `<Warehouse />` |
+| Stat Card: Menipis | (teks saja) | `<AlertTriangle />` |
+| Stat Card: Pending | (teks saja) | `<Clock />` |
+| BottomNav: Home | 🏠 | `<Home />` |
+| BottomNav: Stok | 📦 | `<Package />` |
+| BottomNav: Order | 📋 | `<ShoppingBag />` |
+| BottomNav: Chat | 🤖 | `<MessageSquare />` |
+| BottomNav: Analisis | 📈 | `<BarChart3 />` |
+| Tombol: Scan Resi | 📸 | `<Camera />` |
+| Tombol: Tanya AI | 🤖 | `<Sparkles />` |
+| Tombol: PO Surat | 📄 | `<FileText />` |
+
+#### D. Micro-Animations & Transisi
+
+```css
+/* Fade-in saat halaman load */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.page-container > * { animation: fadeInUp 0.4s ease-out both; }
+
+/* Stagger delay untuk kartu statistik */
+.glass-card:nth-child(1) { animation-delay: 0.05s; }
+.glass-card:nth-child(2) { animation-delay: 0.1s; }
+.glass-card:nth-child(3) { animation-delay: 0.15s; }
+.glass-card:nth-child(4) { animation-delay: 0.2s; }
+
+/* Gradient border glow saat hover */
+.glass-card:hover {
+  box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.3),
+              0 10px 25px -5px rgba(99, 102, 241, 0.15);
+}
+
+/* Animated mesh background */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse at 20% 50%, rgba(99,102,241,0.05) 0%, transparent 50%),
+              radial-gradient(ellipse at 80% 20%, rgba(139,92,246,0.05) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: -1;
+}
+```
+
+#### E. Sidebar — Active State Indicator
+
+Sidebar menu akan mendapatkan visual indicator halaman aktif:
+- Garis vertikal **3px** berwarna primary di sisi kiri item aktif
+- Background item aktif berubah menjadi `rgba(var(--primary), 0.08)`
+- Teks item aktif menjadi **bold** dengan warna primary
+- Membutuhkan konversi `Sidebar.tsx` ke **Client Component** (`'use client'`) agar bisa menggunakan `usePathname()`
+
+### 16.3 File yang Dimodifikasi
+
+| File | Perubahan |
+|------|-----------|
+| `globals.css` | Palet warna baru, micro-animations, gradient backgrounds, updated glassmorphism |
+| `layout.tsx` | Import Google Fonts Inter via `next/font/google` |
+| `Sidebar.tsx` | Konversi ke Client Component, ganti emoji → Lucide SVG, active state indicator |
+| `BottomNav.tsx` | Ganti emoji → Lucide SVG, tambah label teks |
+| `Topbar.tsx` | Ganti emoji → Lucide SVG, sambungkan badge notifikasi ke data real |
+| `DashboardClient.tsx` | Ganti emoji stat labels → Lucide mini-icons, gradient stat cards |
+| `stock/page.tsx` | Fix tombol dummy, ganti emoji → SVG |
+| `orders/page.tsx` | Ganti emoji → SVG |
+| `analysis/page.tsx` | Ganti emoji → SVG |
+| `chat/page.tsx` | Ganti emoji → SVG |
+| `settings/page.tsx` | Ganti emoji → SVG |
+| `calculator/page.tsx` | Ganti emoji → SVG |
+| `history/page.tsx` | Ganti emoji → SVG |
+
+### 16.4 Dependensi Baru
+
+| Package | Versi | Tujuan |
+|---------|-------|--------|
+| `lucide-react` | latest | SVG icon library (tree-shakeable, hanya icon yang dipakai yang masuk bundle) |
+| `next/font/google` | bawaan Next.js | Google Fonts Inter (zero layout shift) |
+
+---
+
+## 17. Enterprise Features (Sudah Diimplementasi)
+
+### 17.1 Predictive AI — Ramalan Kehabisan Stok
+
+| Aspek | Detail |
+|-------|--------|
+| **Endpoint** | `GET /api/analysis/predictive` |
+| **Data Source** | Tabel `stockMovements` — ambil semua pergerakan OUT 30 hari terakhir |
+| **Algoritma** | AI Groq menghitung velocity (rata-rata penjualan/hari) dan estimasi hari sampai habis |
+| **Output** | Array JSON: `{ id, name, velocityPerDay, estimatedDaysLeft, recommendation }` |
+| **Tampilan** | Tabel baru di halaman `/analysis` — progress bar warna merah/kuning/hijau berdasarkan urgency |
+| **Status** | ✅ **Sudah selesai dan aktif** |
+
+### 17.2 Auto-Generate Purchase Order (PO)
+
+| Aspek | Detail |
+|-------|--------|
+| **Halaman** | `/restock/po` — halaman khusus dokumen cetak |
+| **Data Source** | Semua produk di mana `currentStock <= minStock` |
+| **Format** | Kop surat profesional "Kaos Kami SCM", nomor PO otomatis, tabel barang, kolom tanda tangan |
+| **Qty Rekomendasi** | `Math.max(minStock * 2, 10)` per item |
+| **Fitur** | Tombol "Cetak PDF / Print" → `window.print()` |
+| **Tombol Akses** | Tersedia di Dashboard (Peringatan Stok) + Stock page header |
+| **CSS Print** | `@media print` → sembunyikan elemen non-cetak, format A4 |
+| **Status** | ✅ **Sudah selesai dan aktif** |
+
+### 17.3 SWR Real-time Polling
+
+| Aspek | Detail |
+|-------|--------|
+| **Library** | `swr` (Stale-While-Revalidate) |
+| **Dashboard** | Polling `/api/dashboard/stats` setiap 5 detik, data flow: SSR → Client hydrate → SWR takeover |
+| **Stock Table** | Polling `/api/stock` setiap 5 detik, optimistic UI update saat inline edit |
+| **Indikator** | Titik hijau "Live" berkedip (`animate-ping`) di sudut Dashboard dan Stock |
+| **Status** | ✅ **Sudah selesai dan aktif** |
+
+### 17.4 PWA Offline Support
+
+| Aspek | Detail |
+|-------|--------|
+| **Plugin** | `@ducanh2912/next-pwa` (kompatibel Next.js 16 + Turbopack) |
+| **Mode** | Read-only offline — cache aset statis dan halaman, data terakhir tetap tampil walau tanpa internet |
+| **Konfigurasi** | `next.config.ts` — `withPWA()` wrapper dengan `cacheOnFrontEndNav: true` |
+| **Status** | ✅ **Sudah selesai dan aktif** |
+
+---
+
+## 18. Implementasi Roadmap Phase 10
+
+### Fase 10A: Fix Dummy Elements (30 menit)
+- [ ] Ubah tombol "+ Tambah Produk" menjadi Link ke `/stock/new` atau jadikan modal
+- [ ] Ubah tombol "Restock Cepat" menjadi Link ke `/restock/po`
+- [ ] Sambungkan badge notifikasi Topbar ke data low stock real
+- [ ] Tambah label teks di BottomNav
+- [ ] Tambah active state indicator di Sidebar
+
+### Fase 10B: Premium Design System (1-2 jam)
+- [ ] Install `lucide-react`
+- [ ] Update `globals.css` — palet warna premium, micro-animations, gradient mesh
+- [ ] Update `layout.tsx` — import Inter font
+- [ ] Konversi `Sidebar.tsx` ke Client Component + Lucide icons + active indicator
+- [ ] Update `BottomNav.tsx` — Lucide icons + label teks
+- [ ] Update `Topbar.tsx` — Lucide icons + real notification badge
+- [ ] Update `DashboardClient.tsx` — Lucide icons + gradient stat cards
+- [ ] Update semua halaman — ganti emoji header/tombol → Lucide SVG
+
+### Fase 10C: Telegram Bot UX Polish (1 jam)
+_(Detail di CHATBOT_BLUEPRINT.md bagian bawah)_
+
+### Fase 10D: Verifikasi & Deploy
+- [ ] `npm run build` — pastikan 0 errors
+- [ ] Test semua tombol di desktop dan mobile
+- [ ] Test Telegram bot formatting baru
+- [ ] `git push` → Vercel auto-deploy
+
+---
+
+## 19. Matriks Verifikasi Akhir
+
+| # | Test Case | Expected Result |
+|---|-----------|-----------------|
+| 1 | Klik "Tambah Produk" di halaman Stok | Membuka form tambah produk |
+| 2 | Klik "Restock Cepat" di halaman Stok | Redirect ke halaman PO |
+| 3 | Klik lonceng 🔔 di Topbar | Menampilkan jumlah low stock yang benar |
+| 4 | Lihat BottomNav di HP | Setiap ikon punya label teks di bawahnya |
+| 5 | Lihat Sidebar di desktop | Item halaman aktif ter-highlight |
+| 6 | Buka Dashboard di HP | Tidak ada layar hitam/dark mode |
+| 7 | Buka 2 tab, ubah stok di tab 1 | Tab 2 auto-update tanpa refresh |
+| 8 | Klik "Buat Surat PO" saat ada stok menipis | Halaman PO terbuka dengan data produk |
+| 9 | Buka halaman Analisis | Prediksi AI muncul dengan estimasi hari |
+| 10 | Matikan internet, buka website | Halaman tetap tampil (dari cache) |
+
+---
+
+> 🔥 **Target:** Setelah Phase 10 selesai, software SCM Kaos Kami akan terasa seperti SaaS berbayar kelas enterprise — bukan lagi proyek mahasiswa.
