@@ -1,8 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { db } from '@/db'; // Caution: Client side usage of db might need careful setup or move to action
-// Actually, I'll use a server action to fetch logs to keep it consistent and secure.
 import { getStockMovements } from '../actions/stock';
 
 export default function ActivityPage() {

@@ -508,8 +508,23 @@ p { margin-bottom: 0.75rem; line-height: 1.6; }
 
 /* Print CSS — D5 */
 @media print {
-  .sidebar, .topbar, .bottom-nav-container, .btn { display: none !important; }
+  .no-print { display: none !important; }
+  .sidebar, .topbar, .bottom-nav-container, .btn, button, .bottom-nav { display: none !important; }
   .main-content { margin-left: 0 !important; width: 100% !important; }
+  body { background: white !important; color: black !important; padding: 0 !important; margin: 0 !important; }
   .page-container { max-width: 100% !important; padding: 0 !important; }
-  .glass-card { box-shadow: none !important; border: 1px solid #ddd !important; break-inside: avoid; }
+  .glass-card { box-shadow: none !important; border: 1px solid #ddd !important; break-inside: avoid; margin-bottom: 20px !important; }
+  .printable-label { 
+    display: block !important;
+    width: 100mm; 
+    padding: 10mm; 
+    border: 2px solid black; 
+    font-family: monospace;
+    margin: 0 auto;
+  }
+}
+
+/* Dashboard Tooltip */
+.chart-tooltip {
+  position: absolute; top: -15px; left: 50%; transform: translateX(-50%); width: 100%; text-align: center; font-weight: bold;
 }

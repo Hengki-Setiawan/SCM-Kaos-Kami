@@ -61,22 +61,6 @@ export default function OrderDetailClient({ order: initialOrder, items }: { orde
 
   return (
     <div className="flex flex-col gap-6" style={{ maxWidth: 800, margin: '0 auto', width: '100%' }}>
-      <style dangerouslySetInnerHTML={{ __html: `
-        @media print {
-          .no-print { display: none !important; }
-          .sidebar, .topbar, .bottom-nav, button { display: none !important; }
-          body { background: white !important; color: black !important; padding: 0 !important; margin: 0 !important; }
-          .glass-card { border: 1px solid #eee !important; box-shadow: none !important; margin-bottom: 20px !important; }
-          .printable-label { 
-            display: block !important;
-            width: 100mm; 
-            padding: 10mm; 
-            border: 2px solid black; 
-            font-family: monospace;
-            margin: 0 auto;
-          }
-        }
-      `}} />
       
       <div className="flex justify-between items-center mobile-col mobile-gap-2 no-print">
         <div>
@@ -112,7 +96,7 @@ export default function OrderDetailClient({ order: initialOrder, items }: { orde
                       <td style={{ padding: '0.75rem' }}>{item.productName}</td>
                       <td style={{ padding: '0.75rem', textAlign: 'center' }}>{item.quantity}</td>
                       <td style={{ padding: '0.75rem', textAlign: 'right' }}>
-                        Rp {new Intl.NumberFormat('id-ID').format(item.totalPrice)}
+                        Rp {new Intl.NumberFormat('id-ID').format(item.quantity * item.unitPrice)}
                       </td>
                     </tr>
                   ))}

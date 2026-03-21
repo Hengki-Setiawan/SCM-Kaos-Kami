@@ -7,6 +7,13 @@ export async function GET(req: Request) {
   // Hanya disimulasi sebagai cron job / webhook
   // Bisa diamankan dengan secret token di production
   try {
+    const authHeader = req.headers.get('authorization');
+    if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    } else if (!process.env.CRON_SECRET && process.env.NODE_ENV === 'production') {
+      return NextResponse.json({ error: 'CRON_SECRET is missing in production.' }, { status: 401 });
+    }
+
     const ninetyDaysAgo = new Date();
     ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
 

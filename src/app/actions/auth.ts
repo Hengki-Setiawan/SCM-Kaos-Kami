@@ -6,9 +6,12 @@ import { redirect } from 'next/navigation';
 
 export async function loginAction(password: string) {
   // In production, use env var. Hardcoded fallback for easy local dev testing
-  const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+  const adminPassword = process.env.ADMIN_PASSWORD;
+  if (!adminPassword && process.env.NODE_ENV === 'production') {
+    throw new Error('CRITICAL: ADMIN_PASSWORD tidak terkonfigurasi di Vercel/Production Environment!');
+  }
   
-  if (password !== adminPassword) {
+  if (password !== (adminPassword || 'admin123')) {
     return { success: false, error: 'Password salah' };
   }
   

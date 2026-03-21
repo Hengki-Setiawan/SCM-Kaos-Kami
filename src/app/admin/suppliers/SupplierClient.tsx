@@ -65,7 +65,7 @@ export default function SupplierClient({ initialSuppliers }: { initialSuppliers:
           <div key={s.id} className="glass-card flex flex-col gap-4">
             <div className="flex justify-between items-start">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center text-primary font-bold text-xl">
+                <div style={{ width: 48, height: 48, borderRadius: '12px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'center', color: 'rgb(var(--primary))', fontWeight: 'bold', fontSize: '1.2rem' }}>
                   {s.name.charAt(0)}
                 </div>
                 <div>
@@ -73,7 +73,7 @@ export default function SupplierClient({ initialSuppliers }: { initialSuppliers:
                   <span className="text-[10px] text-muted uppercase tracking-wider">{s.contactPerson || 'No Contact Person'}</span>
                 </div>
               </div>
-              <button onClick={() => handleDelete(s)} className="text-muted hover:text-danger hover:bg-danger/10 p-2 rounded-lg transition-colors">
+              <button onClick={() => handleDelete(s)} className="btn btn-outline" style={{ padding: '0.4rem', border: 'none', color: 'rgb(var(--danger))' }}>
                 <Trash2 size={16} />
               </button>
             </div>
@@ -88,13 +88,13 @@ export default function SupplierClient({ initialSuppliers }: { initialSuppliers:
             </div>
 
             <div className="grid grid-cols-2 gap-2 mt-4">
-               <div className="p-3 bg-white/5 rounded-xl text-center">
+               <div className="p-3 rounded-xl text-center" style={{ background: 'rgba(255,255,255,0.05)' }}>
                   <span className="block text-[10px] text-muted mb-1">Total Transaksi</span>
                   <span className="font-bold">{s.totalTransactions}x</span>
                </div>
-               <div className="p-3 bg-white/5 rounded-xl text-center">
+               <div className="p-3 rounded-xl text-center" style={{ background: 'rgba(255,255,255,0.05)' }}>
                   <span className="block text-[10px] text-muted mb-1">Total Belanja</span>
-                  <span className="font-bold text-primary">Rp {(s.totalSpend / 1000).toFixed(0)}k</span>
+                  <span className="font-bold" style={{ color: 'rgb(var(--primary))' }}>Rp {(s.totalSpend / 1000).toFixed(0)}k</span>
                </div>
             </div>
           </div>

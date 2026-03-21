@@ -36,10 +36,10 @@ export default function ProductDetailClient({ initialProduct, categories, histor
         if (data.success) {
           handleUpdateField('imageUrl', data.url);
         } else {
-          alert('Gagal upload gambar: ' + data.error);
+          showToast('Gagal upload gambar: ' + data.error, 'error');
         }
       } catch (err: any) {
-        alert('Terdapat kesalahan jaringan saat upload.');
+        showToast('Terdapat kesalahan jaringan saat upload.', 'error');
       } finally {
         setIsUploading(false);
       }

@@ -1,8 +1,11 @@
 import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 
-const secretKey = process.env.JWT_SECRET || 'kaos-kami-super-secret-12345';
-const key = new TextEncoder().encode(secretKey);
+const secretKey = process.env.JWT_SECRET;
+if (!secretKey && process.env.NODE_ENV === 'production') {
+  throw new Error('CRITICAL: JWT_SECRET tidak terkonfigurasi di Vercel/Production Environment!');
+}
+const key = new TextEncoder().encode(secretKey || 'kaos-kami-super-secret-12345');
 
 export async function encrypt(payload: any) {
   return await new SignJWT(payload)

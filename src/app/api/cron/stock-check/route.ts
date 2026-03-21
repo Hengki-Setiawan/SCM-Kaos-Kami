@@ -14,6 +14,8 @@ export async function GET(req: Request) {
     const authHeader = req.headers.get('authorization');
     if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    } else if (!process.env.CRON_SECRET && process.env.NODE_ENV === 'production') {
+      return NextResponse.json({ error: 'CRON_SECRET is missing in production.' }, { status: 401 });
     }
 
     // 2. Cek stok yang menembus batas bawah

@@ -7,6 +7,7 @@ const crumbMap: Record<string, string> = {
   '': 'Dashboard', stock: 'Stok', orders: 'Pesanan', chat: 'Chat AI',
   calculator: 'Kalkulator', analysis: 'Analisis', settings: 'Pengaturan',
   history: 'Riwayat', new: 'Baru', scan: 'Scan Resi', restock: 'Restock', po: 'Purchase Order',
+  finance: 'Keuangan', admin: 'Admin', suppliers: 'Supplier', activity: 'Aktivitas'
 };
 
 export default function Breadcrumb() {

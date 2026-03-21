@@ -77,11 +77,19 @@ export default async function SettingsPage() {
         <div className="flex flex-col gap-3">
           <div className="flex justify-between items-center p-3 rounded-lg" style={{ background: 'rgba(var(--surface-hover), 0.3)' }}>
             <span>☁️ Cloudinary (Upload Gambar)</span>
-            <span className="text-[rgb(var(--success))] text-sm font-semibold">✅ Aktif</span>
+            {process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ? (
+               <span className="text-[rgb(var(--success))] text-sm font-semibold">✅ Aktif</span>
+            ) : (
+               <span className="text-muted text-sm font-semibold">❌ Tidak Aktif</span>
+            )}
           </div>
           <div className="flex justify-between items-center p-3 rounded-lg" style={{ background: 'rgba(var(--surface-hover), 0.3)' }}>
             <span>🤖 Groq AI (Chat + Vision)</span>
-            <span className="text-[rgb(var(--success))] text-sm font-semibold">✅ Aktif</span>
+            {process.env.GROQ_API_KEY ? (
+               <span className="text-[rgb(var(--success))] text-sm font-semibold">✅ Aktif</span>
+            ) : (
+               <span className="text-muted text-sm font-semibold">❌ Tidak Aktif</span>
+            )}
           </div>
           <WebhookSetup />
           <div className="flex justify-between items-center p-3 rounded-lg" style={{ background: 'rgba(var(--surface-hover), 0.3)' }}>

@@ -38,12 +38,6 @@ export default async function StockPage() {
           <Link href="/stock/new" className="btn btn-primary touch-target" style={{ textDecoration: 'none' }}>
             <Plus size={16} /> Produk Baru
           </Link>
-          <Link href="/restock/po" className="btn btn-outline touch-target" style={{ textDecoration: 'none' }}>
-            <RefreshCcw size={16} /> Restock
-          </Link>
-          <a href="/restock/po" target="_blank" className="btn btn-outline touch-target" style={{ borderColor: 'rgb(var(--primary))', color: 'rgb(var(--primary))' }}>
-            <FileText size={16} /> PO
-          </a>
         </div>
       </div>
 

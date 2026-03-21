@@ -4,7 +4,7 @@ import { deleteExpense } from '../actions/expenses';
 import { useToast } from '@/components/Toast';
 import { useConfirm } from '@/components/ConfirmDialog';
 
-export default function ExpenseList({ expenses, onRefresh }: { expenses: any[], onRefresh: () => void }) {
+export default function ExpenseList({ expenses }: { expenses: any[] }) {
   const { showToast } = useToast();
   const { confirm } = useConfirm();
 
@@ -29,7 +29,6 @@ export default function ExpenseList({ expenses, onRefresh }: { expenses: any[], 
     const res = await deleteExpense(id);
     if (res.success) {
       showToast('Berhasil dihapus', 'success');
-      onRefresh();
     } else {
       showToast(res.error || 'Gagal hapus', 'error');
     }

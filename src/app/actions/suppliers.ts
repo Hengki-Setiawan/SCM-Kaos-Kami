@@ -32,7 +32,16 @@ export async function createSupplier(data: {
 
 export async function updateSupplier(id: string, data: any) {
   try {
-    await db.update(suppliers).set(data).where(eq(suppliers.id, id));
+    const safeData = {
+      name: data.name,
+      contactPerson: data.contactPerson,
+      phone: data.phone,
+      address: data.address,
+      notes: data.notes,
+    };
+    const cleanData = Object.fromEntries(Object.entries(safeData).filter(([_, v]) => v !== undefined));
+
+    await db.update(suppliers).set(cleanData).where(eq(suppliers.id, id));
     revalidatePath('/admin/suppliers');
     return { success: true };
   } catch (error: any) {

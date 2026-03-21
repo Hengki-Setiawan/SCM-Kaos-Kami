@@ -25,14 +25,4 @@ export function validateEnv() {
   }
 }
 
-export function getEnv() {
-  return {
-    tursoUrl: process.env.TURSO_DATABASE_URL!,
-    tursoToken: process.env.TURSO_AUTH_TOKEN!,
-    groqKey: process.env.GROQ_API_KEY!,
-    cloudinaryName: process.env.CLOUDINARY_CLOUD_NAME || '',
-    cloudinaryKey: process.env.CLOUDINARY_API_KEY || '',
-    cloudinarySecret: process.env.CLOUDINARY_API_SECRET || '',
-    telegramToken: process.env.TELEGRAM_BOT_TOKEN || '',
-  };
-}
+

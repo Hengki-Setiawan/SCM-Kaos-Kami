@@ -139,8 +139,8 @@ export default function VariantGenerator({ categories, onClose }: { categories: 
               <label className="font-bold block mb-3 text-sm flex items-center gap-2">📐 Ukuran (Size)</label>
               <div className="flex flex-wrap gap-2 mb-3">
                 {sizes.map(s => (
-                  <span key={s} className="px-3 py-1 bg-primary/20 text-primary text-xs rounded-full flex items-center gap-2">
-                    {s} <button onClick={() => handleRemoveSize(s)}><X size={12} /></button>
+                  <span key={s} className="flex items-center gap-2" style={{ padding: '0.25rem 0.75rem', background: 'rgba(var(--primary), 0.2)', color: 'rgb(var(--primary))', fontSize: '0.75rem', borderRadius: '999px' }}>
+                    {s} <button onClick={() => handleRemoveSize(s)} className="text-muted hover:text-danger bg-transparent border-none p-0 flex"><X size={12} /></button>
                   </span>
                 ))}
               </div>
@@ -162,8 +162,8 @@ export default function VariantGenerator({ categories, onClose }: { categories: 
               <label className="font-bold block mb-3 text-sm flex items-center gap-2">🎨 Warna (Color)</label>
               <div className="flex flex-wrap gap-2 mb-3">
                 {colors.map(c => (
-                  <span key={c} className="px-3 py-1 bg-accent/20 text-accent text-xs rounded-full flex items-center gap-2">
-                    {c} <button onClick={() => handleRemoveColor(c)}><X size={12} /></button>
+                  <span key={c} className="flex items-center gap-2" style={{ padding: '0.25rem 0.75rem', background: 'rgba(var(--accent), 0.2)', color: 'rgb(var(--accent))', fontSize: '0.75rem', borderRadius: '999px' }}>
+                    {c} <button onClick={() => handleRemoveColor(c)} className="text-muted hover:text-danger bg-transparent border-none p-0 flex"><X size={12} /></button>
                   </span>
                 ))}
               </div>

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { decrypt } from '@/lib/auth';
 
-const publicRoutes = ['/login', '/api/webhooks/telegram'];
+const publicRoutes = ['/login', '/api/webhooks/telegram', '/api/bot'];
 
 export async function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname;

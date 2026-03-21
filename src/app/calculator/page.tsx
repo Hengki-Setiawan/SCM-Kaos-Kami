@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useToast } from '@/components/Toast';
 import { Calculator, History as HistoryIcon, ArrowRight, Sparkles } from 'lucide-react';
+import { formatRupiah } from '@/lib/utils';
 
 export default function CalculatorPage() {
   const { showToast } = useToast();
@@ -19,10 +20,6 @@ export default function CalculatorPage() {
       } catch (e) {}
     }
   }, []);
-
-  const formatRupiah = (val: number) => {
-    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(val);
-  };
 
   const handleCalculate = async (e: React.FormEvent) => {
     e.preventDefault();

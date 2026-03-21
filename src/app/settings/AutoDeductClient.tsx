@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { saveAutoDeductRule } from '../actions/settings';
+import { useToast } from '@/components/Toast';
 
 type AutoDeductItem = {
   productId: string;
@@ -17,6 +18,7 @@ export default function AutoDeductClient({
   availableProducts: any[];
   ruleId: string | undefined;
 }) {
+  const { showToast } = useToast();
   const [items, setItems] = useState<AutoDeductItem[]>(
     initialItems.length > 0 ? initialItems : [{ productId: '', quantity: 1 }]
   );
@@ -40,9 +42,9 @@ export default function AutoDeductClient({
     setIsSaving(false);
 
     if (res.success) {
-      alert('Aturan berhasil disimpan!');
+      showToast('Aturan berhasil disimpan!', 'success');
     } else {
-      alert(res.error);
+      showToast(res.error || 'Gagal menyimpan aturan', 'error');
     }
   };
 

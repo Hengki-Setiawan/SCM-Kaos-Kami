@@ -3,6 +3,7 @@
 import useSWR from 'swr';
 import Link from 'next/link';
 import { Boxes, Warehouse, AlertTriangle, Clock, History, FileText, Package, TrendingUp, Calculator, Settings, ScanLine, Sparkles, Plus, BarChart3, Wallet, TrendingDown } from 'lucide-react';
+import { formatRupiah } from '@/lib/utils';
 
 const fetcher = (url: string) => fetch(url).then(res => res.json()).then(res => res.data);
 
@@ -20,8 +21,6 @@ export default function DashboardClient({ initialData }: { initialData: any }) {
   const pendingOrderCount = displayData.pendingOrderCount;
   const recentMovements = displayData.recentMovements || [];
   const lowStockList = displayData.lowStockList || [];
-
-  const formatIDR = (val: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
 
   // Chart scaling logic
   const maxVal = chartData ? Math.max(...chartData.map((d: any) => Math.max(d.revenue, d.expense)), 100000) : 100000;
@@ -54,7 +53,7 @@ export default function DashboardClient({ initialData }: { initialData: any }) {
           <div className="flex justify-between items-start">
             <div>
               <span className="text-xs text-muted block mb-1">Total Penjualan (Gross)</span>
-              <span className="text-xl font-bold text-[rgb(var(--success))]">{formatIDR(revenue)}</span>
+              <span className="text-xl font-bold text-[rgb(var(--success))]">{formatRupiah(revenue)}</span>
             </div>
             <TrendingUp size={20} className="text-[rgb(var(--success))]" />
           </div>
@@ -63,7 +62,7 @@ export default function DashboardClient({ initialData }: { initialData: any }) {
           <div className="flex justify-between items-start">
             <div>
               <span className="text-xs text-muted block mb-1">Beban Operasional & HPP</span>
-              <span className="text-xl font-bold text-[rgb(var(--danger))]">{formatIDR(expense + hpp)}</span>
+              <span className="text-xl font-bold text-[rgb(var(--danger))]">{formatRupiah(expense + hpp)}</span>
             </div>
             <TrendingDown size={20} className="text-[rgb(var(--danger))]" />
           </div>
@@ -72,7 +71,7 @@ export default function DashboardClient({ initialData }: { initialData: any }) {
           <div className="flex justify-between items-start">
             <div>
               <span className="text-xs text-muted block mb-1">Laba Bersih (Net Profit)</span>
-              <span className="text-2xl font-bold text-[rgb(var(--primary))]">{formatIDR(netProfit)}</span>
+              <span className="text-2xl font-bold text-[rgb(var(--primary))]">{formatRupiah(netProfit)}</span>
             </div>
             <Wallet size={24} className="text-[rgb(var(--primary))]" />
           </div>
@@ -137,11 +136,6 @@ export default function DashboardClient({ initialData }: { initialData: any }) {
               </div>
             ))}
           </div>
-          <style dangerouslySetInnerHTML={{ __html: `
-            .chart-tooltip {
-              position: absolute; top: -15px; left: 50%; transform: translateX(-50%); width: 100%; text-align: center; font-weight: bold;
-            }
-          `}} />
         </div>
 
         <div className="flex flex-col gap-6">
@@ -158,7 +152,7 @@ export default function DashboardClient({ initialData }: { initialData: any }) {
           
           <div className="glass-card" style={{ background: 'rgba(var(--primary), 0.05)' }}>
              <span className="text-muted text-xs block mb-1 uppercase tracking-widest">Aset Bersih</span>
-             <span className="text-xl font-bold">{formatIDR(totalValue)}</span>
+             <span className="text-xl font-bold">{formatRupiah(totalValue)}</span>
              <p className="text-[10px] text-muted mt-2 italic">Nilai estimasi total stok yang ada di gudang saat ini.</p>
           </div>
         </div>

@@ -144,9 +144,10 @@ export default function StockTableClient({ initialProducts, categories }: { init
   };
 
   const handleExportCSV = () => {
+    const sanitize = (str: string) => str ? str.toString().replace(/^[=+\-@]/, "'$&") : '';
     const headers = ['SKU', 'Nama Produk', 'Warna', 'Ukuran', 'Stok Aktual', 'Min Stok', 'Harga Jual (Rp)'];
     const rows = filteredProducts.map(p => [
-      p.sku, `"${p.name}"`, p.color || '', p.size || '', p.currentStock, p.minStock, p.unitPrice || 0
+      sanitize(p.sku), `"${sanitize(p.name)}"`, sanitize(p.color || ''), sanitize(p.size || ''), p.currentStock, p.minStock, p.unitPrice || 0
     ]);
     const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows.map(e => e.join(','))].join("\n");
     const encodedUri = encodeURI(csvContent);
@@ -257,7 +258,7 @@ export default function StockTableClient({ initialProducts, categories }: { init
             <tbody>
               {currentItems.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ padding: '3rem', textAlign: 'center' }} className="text-muted">
+                  <td colSpan={8} style={{ padding: '3rem', textAlign: 'center' }} className="text-muted">
                     <div className="flex flex-col items-center gap-2">
                       <span style={{ fontSize: '2rem' }}>📦</span>
                       <span>Tidak ada produk ditemukan.</span>

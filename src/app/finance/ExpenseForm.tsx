@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { createExpense } from '../actions/expenses';
 import { useToast } from '@/components/Toast';
 
-export default function ExpenseForm({ onRefresh }: { onRefresh: () => void }) {
+export default function ExpenseForm({ suppliers }: { suppliers: any[] }) {
   const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -12,6 +12,7 @@ export default function ExpenseForm({ onRefresh }: { onRefresh: () => void }) {
     category: 'operasional',
     amount: '',
     date: new Date().toISOString().split('T')[0],
+    supplierId: '',
     notes: ''
   });
 
@@ -29,16 +30,16 @@ export default function ExpenseForm({ onRefresh }: { onRefresh: () => void }) {
     setLoading(true);
     const res = await createExpense({
       ...formData,
-      amount: parseFloat(formData.amount)
+      amount: parseFloat(formData.amount),
+      supplierId: formData.supplierId || undefined
     });
     setLoading(false);
 
     if (res.success) {
-      showToast('Pengeluaran berhasil dicatat', 'success');
-      setFormData({ ...formData, title: '', amount: '', notes: '' });
-      onRefresh();
+       showToast('Pengeluaran berhasil dicatat', 'success');
+       setFormData({ ...formData, title: '', amount: '', notes: '', supplierId: '' });
     } else {
-      showToast(res.error || 'Gagal menyimpan', 'error');
+       showToast(res.error || 'Gagal menyimpan', 'error');
     }
   };
 
@@ -67,6 +68,20 @@ export default function ExpenseForm({ onRefresh }: { onRefresh: () => void }) {
           >
             {categories.map(c => (
               <option key={c.value} value={c.value}>{c.label}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="md:col-span-2 flex flex-col gap-1">
+          <label className="text-xs text-muted">Supplier / Vendor (Opsional)</label>
+          <select 
+            className="input-field"
+            value={formData.supplierId}
+            onChange={e => setFormData({...formData, supplierId: e.target.value})}
+          >
+            <option value="">-- Tidak ada --</option>
+            {suppliers.map(s => (
+              <option key={s.id} value={s.id}>{s.name}</option>
             ))}
           </select>
         </div>

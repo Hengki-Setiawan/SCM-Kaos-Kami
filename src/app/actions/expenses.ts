@@ -12,12 +12,13 @@ const expenseSchema = z.object({
   category: z.string().min(1, 'Kategori wajib diisi'),
   amount: z.number().min(0, 'Jumlah tidak boleh negatif'),
   date: z.string().min(10, 'Tanggal tidak valid'),
+  supplierId: z.string().optional(),
   notes: z.string().optional(),
   receiptUrl: z.string().optional(),
 });
 
 export async function createExpense(data: {
-  title: string; category: string; amount: number; date: string; notes?: string; receiptUrl?: string;
+  title: string; category: string; amount: number; date: string; supplierId?: string; notes?: string; receiptUrl?: string;
 }) {
   try {
     const validated = expenseSchema.safeParse(data);

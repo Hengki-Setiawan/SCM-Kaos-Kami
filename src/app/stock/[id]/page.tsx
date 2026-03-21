@@ -5,8 +5,8 @@ import ProductDetailClient from './ProductDetailClient';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
-export default async function ProductDetailPage({ params }: { params: { id: string } }) {
-  const { id } = params;
+export default async function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
 
   // 1. Get Product
   const [product] = await db.select().from(products).where(eq(products.id, id));

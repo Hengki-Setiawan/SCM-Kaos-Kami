@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
-import { products, orders, expenses, orderItems } from '@/db/schema';
+import { products, orders, expenses } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 
 export async function GET(request: Request) {

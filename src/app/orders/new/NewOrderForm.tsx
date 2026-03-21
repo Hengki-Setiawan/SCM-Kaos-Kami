@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { createOrder } from '../../actions/orders';
+import { useToast } from '@/components/Toast';
 
 type OrderItem = {
   productId: string;
@@ -10,6 +11,7 @@ type OrderItem = {
 };
 
 export default function NewOrderForm({ products, initialCustomerName = '', initialPlatform = '' }: { products: any[], initialCustomerName?: string, initialPlatform?: string }) {
+  const { showToast } = useToast();
   const [customerName, setCustomerName] = useState(initialCustomerName);
   const [platform, setPlatform] = useState(initialPlatform || 'shopee');
   const [items, setItems] = useState<OrderItem[]>([{ productId: '', quantity: 1, unitPrice: 0 }]);
@@ -37,17 +39,18 @@ export default function NewOrderForm({ products, initialCustomerName = '', initi
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!customerName) return alert('Nama pelanggan wajib diisi');
-    if (items.some(i => !i.productId || i.quantity <= 0)) return alert('Pilih produk dan pastikan jumlah valid');
+    if (!customerName) return showToast('Nama pelanggan wajib diisi', 'error');
+    if (items.some(i => !i.productId || i.quantity <= 0)) return showToast('Pilih produk dan pastikan jumlah valid', 'error');
 
     setIsSubmitting(true);
     const res = await createOrder({ customerName, platform, items, totalPrice });
     setIsSubmitting(false);
 
     if (res.success) {
+      showToast('Pesanan berhasil dibuat!', 'success');
       window.location.href = '/orders'; // Redirect ke history order
     } else {
-      alert(res.error);
+      showToast(res.error || 'Gagal membuat pesanan', 'error');
     }
   };
 

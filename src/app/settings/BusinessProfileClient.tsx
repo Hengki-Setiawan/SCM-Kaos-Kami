@@ -6,14 +6,14 @@ import { useToast } from '@/components/Toast';
 export default function BusinessProfileClient() {
   const { showToast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
-  const [profile, setProfile] = useState({ brandName: 'Kaos Kami', adminName: 'Hengki Setiawan', telegramToken: '' });
+  const [profile, setProfile] = useState({ brandName: 'Kaos Kami', adminName: 'Hengki Setiawan' });
 
   useEffect(() => {
     const saved = localStorage.getItem('business_profile');
     if (saved) {
       try { 
         const parsed = JSON.parse(saved);
-        setProfile({ brandName: parsed.brandName || 'Kaos Kami', adminName: parsed.adminName || 'Hengki Setiawan', telegramToken: parsed.telegramToken || '' });
+        setProfile({ brandName: parsed.brandName || 'Kaos Kami', adminName: parsed.adminName || 'Hengki Setiawan' });
       } catch (e) {}
     }
   }, []);
@@ -60,18 +60,8 @@ export default function BusinessProfileClient() {
       </div>
 
       <div>
-        <span className="text-xs text-muted block mb-1">Telegram Bot Token</span>
-        {isEditing ? (
-          <input 
-            type="text" 
-            className="input-field" 
-            value={profile.telegramToken} 
-            onChange={e => setProfile({...profile, telegramToken: e.target.value})}
-            placeholder="Ketik token bot dari BotFather"
-          />
-        ) : (
-          <span className="font-semibold">{profile.telegramToken ? '✅ Terhubung (Disembunyikan)' : '❌ Belum diatur'}</span>
-        )}
+        <span className="text-xs text-muted block mb-1">Status Bot Telegram</span>
+        <span className="font-semibold text-sm">✅ Diatur via Server Env</span>
       </div>
 
       <div className="col-span-1 pt-2">
