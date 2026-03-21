@@ -16,7 +16,7 @@ export default function ExportPage() {
   return (
     <div className="max-w-4xl mx-auto">
       <div className="flex items-center gap-3 mb-8">
-        <div className="p-3 rounded-2xl bg-white/5">
+        <div style={{ padding: '0.75rem', borderRadius: '1rem', background: 'rgba(255,255,255,0.05)' }}>
           <Database size={32} className="text-muted" />
         </div>
         <div>

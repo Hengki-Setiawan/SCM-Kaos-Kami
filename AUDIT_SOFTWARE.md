@@ -294,3 +294,58 @@ Halaman keuangan bisa lebih efisien sebagai Server Component yang langsung query
 | 15 | Konsolidasi `/history` dan `/activity` | 10 menit |
 | 16 | Deduplikasi util functions | 10 menit |
 | 17 | Pindah dangerouslySetInnerHTML CSS ke globals.css | 5 menit |
+
+---
+---
+
+# 🔍 GAP ANALYSIS — Blueprint vs Kode Aktual (22 Maret 2026)
+
+> Crosscheck menyeluruh antara **4 dokumen blueprint** (BLUEPRINT.md, CHATBOT_BLUEPRINT.md, IMPROVEMENT_BLUEPRINT.md, AUDIT_SOFTWARE.md — 3.137 baris total) terhadap **87 file kode** aktual di `src/`.
+
+## 📊 Ringkasan Cepat
+
+| Dokumen | Total Item | ✅ Sudah | ❌ Belum | ⚠️ Sebagian |
+|---|---|---|---|---|
+| BLUEPRINT.md (Fase 1–6 + Phase 10) | ~50 fitur | ~40 | ~5 | ~5 |
+| CHATBOT_BLUEPRINT.md (Phase 1–12) | ~25 fitur | ~15 | ~8 | ~2 |
+| AUDIT_SOFTWARE.md (30 temuan) | 30 bug/temuan | ~22 | ~8 | 0 |
+| IMPROVEMENT_BLUEPRINT.md (63 item) | 63 item | ~35 | ~20 | ~8 |
+
+**Total Implementasi: ~70-75%**
+
+---
+
+## 🔴 Bug Kritis yang MASIH ADA
+
+| # | Bug | File | Status Perbaikan |
+|---|---|---|---|
+| 1 | `createOrder` tidak validasi stok → bisa negatif | `actions/orders.ts` | ⏳ Akan diperbaiki |
+| 2 | `deleteOrder` hapus pesanan tanpa kembalikan stok | `actions/orders.ts` | ⏳ Akan diperbaiki |
+| 3 | Detail Pesanan "Rp NaN" (`totalPrice` tidak di-query) | `orders/[id]/*.tsx` | ⏳ Akan diperbaiki |
+
+## 🟠 Fitur yang BELUM Diimplementasi
+
+| # | Fitur | Sumber | Status |
+|---|---|---|---|
+| 1 | Sorting tabel stok (klik header) | IMPROV C5 | ❌ |
+| 2 | Loading skeleton per-route | IMPROV C3 | ⚠️ Hanya 1 global |
+| 3 | TailwindCSS classes nyasar | AUDIT #19 | ⚠️ 2+ file |
+| 4 | `alert()` sisa di `scan/page.tsx` | AUDIT #20 | ⚠️ 1 tempat |
+| 5 | colSpan mismatch | AUDIT #22, #23 | ❌ |
+| 6 | `global-error.tsx` klaim logging palsu | AUDIT #18 | ❌ |
+| 7 | Testing coverage rendah (2 file) | IMPROV E13 | ⚠️ |
+| 8 | Logging/monitoring | IMPROV E15 | ❌ |
+| 9 | Vision bot lanjutan (foto produk/nota) | CHATBOT 7 | ❌ |
+| 10 | Voice Command (Groq Whisper) | CHATBOT Future | ❌ God-Tier |
+
+## ✅ Fitur yang Sudah Terimplementasi dengan Baik
+
+- Core CRUD (produk, stok, pesanan, kategori, supplier)
+- Telegram Bot 14 CRUD actions (Phase 12 Clone Mode)
+- Dark mode, SearchModal Ctrl+K, Lucide icons
+- Pagination, ConfirmDialog, Toast
+- Error boundary, Auth/middleware, auto-deduct packaging
+- Breadcrumb, PWA, Predictive AI, Dashboard charts
+- SWR polling sudah dioptimasi (15s/30s)
+- `userScalable: true`, drag-drop scan, env validation
+

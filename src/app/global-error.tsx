@@ -10,12 +10,12 @@ export default function GlobalError({
   return (
     <html>
       <body>
-        <div className="flex flex-col items-center justify-center min-h-screen text-center p-4">
-          <h2 className="text-2xl font-bold mb-4">Aduh! Terjadi Kesalahan Sistem.</h2>
-          <p className="text-muted mb-6 max-w-lg">
-            Sistem gagal memuat halaman ini. Silakan muat ulang atau kembali ke dashboard utama.
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', textAlign: 'center', padding: '1rem' }}>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1rem' }}>Aduh! Terjadi Kesalahan Sistem.</h2>
+          <p style={{ color: '#888', marginBottom: '1.5rem', maxWidth: '32rem' }}>
+            Silakan muat ulang halaman atau kembali ke dashboard utama.
           </p>
-          <pre className="text-xs text-left p-4 rounded-lg bg-[rgba(var(--danger),0.1)] text-[rgb(var(--danger))] max-w-2xl w-full overflow-x-auto mb-6">
+          <pre style={{ fontSize: '0.75rem', textAlign: 'left', padding: '1rem', borderRadius: '0.5rem', background: 'rgba(239,68,68,0.1)', color: '#ef4444', maxWidth: '42rem', width: '100%', overflowX: 'auto', marginBottom: '1.5rem' }}>
             {error.message || 'Unknown Error'}
             {'\n'}
             Digest: {error.digest}
@@ -31,3 +31,4 @@ export default function GlobalError({
     </html>
   );
 }
+

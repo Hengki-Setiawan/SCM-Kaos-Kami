@@ -9,6 +9,7 @@ export default function ScanReceiptPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [scanResult, setScanResult] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -70,7 +71,7 @@ export default function ScanReceiptPage() {
     } catch (err: any) {
       setIsUploading(false);
       setIsScanning(false);
-      alert(err.message);
+      setError(err.message || 'Terjadi kesalahan saat scan resi');
     }
   };
 
@@ -80,6 +81,12 @@ export default function ScanReceiptPage() {
         <h1>Scan Resi Pengiriman</h1>
         <p className="text-muted">Upload gambar resi untuk otomatis mengekstrak data pesanan.</p>
       </div>
+
+      {error && (
+        <div className="glass-card" style={{ background: 'rgba(var(--danger), 0.1)', border: '1px solid rgba(var(--danger), 0.3)', color: 'rgb(var(--danger))' }}>
+          <p style={{ margin: 0 }}>❌ {error}</p>
+        </div>
+      )}
 
       <div className="glass-card flex flex-col items-center gap-6 p-8">
         {/* Upload Area */}

@@ -71,7 +71,7 @@ export default function VariantGenerator({ categories, onClose }: { categories: 
       <div className="w-full max-w-2xl glass-card relative animate-in fade-in zoom-in duration-200 flex flex-col max-h-[90vh]">
         <div className="flex justify-between items-center mb-6">
           <h2 className="flex items-center gap-2"><Zap className="text-yellow-400" /> Smart Variant Generator</h2>
-          <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-full"><X size={20} /></button>
+          <button onClick={onClose} style={{ padding: '0.5rem', borderRadius: '50%' }} className="btn-ghost"><X size={20} /></button>
         </div>
 
         <div className="overflow-y-auto flex-1 pr-2 flex flex-col gap-6">
