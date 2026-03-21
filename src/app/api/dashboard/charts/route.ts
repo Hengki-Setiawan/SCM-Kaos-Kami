@@ -6,9 +6,10 @@ import { sql, and, gte, lte, ne } from 'drizzle-orm';
 export async function GET() {
   try {
     const now = new Date();
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(now.getDate() - 6);
-    sevenDaysAgo.setHours(0, 0, 0, 0);
+    const sevenDaysAgoDate = new Date();
+    sevenDaysAgoDate.setDate(now.getDate() - 6);
+    sevenDaysAgoDate.setHours(0, 0, 0, 0);
+    const sevenDaysAgo = sevenDaysAgoDate.toISOString();
 
     // Fetch daily revenue for last 7 days
     const revenueData = await db.select({
@@ -36,7 +37,7 @@ export async function GET() {
     const chartData = [];
 
     for (let i = 0; i < 7; i++) {
-        const d = new Date(sevenDaysAgo);
+        const d = new Date(sevenDaysAgoDate);
         d.setDate(d.getDate() + i);
         const dateStr = d.toISOString().split('T')[0];
         
