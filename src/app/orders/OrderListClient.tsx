@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { updateOrderStatus, deleteOrder } from '../actions/orders';
 import { useToast } from '@/components/Toast';
 import { useConfirm } from '@/components/ConfirmDialog';
+import { timeAgo } from '@/lib/utils';
 import Link from 'next/link';
 
 export default function OrderListClient({ initialOrders }: { initialOrders: any[] }) {
@@ -79,7 +80,7 @@ export default function OrderListClient({ initialOrders }: { initialOrders: any[
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid rgba(var(--border), 0.5)', background: 'rgba(var(--surface-hover), 0.3)' }}>
-                <th style={{ padding: '1rem' }}>No. Order</th>
+                <th style={{ padding: '1rem' }}>No. Order / Waktu</th>
                 <th style={{ padding: '1rem' }}>Pelanggan</th>
                 <th style={{ padding: '1rem' }}>Platform</th>
                 <th style={{ padding: '1rem' }}>Total</th>
@@ -90,14 +91,23 @@ export default function OrderListClient({ initialOrders }: { initialOrders: any[
             <tbody>
               {filteredOrders.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ padding: '2rem', textAlign: 'center' }} className="text-muted">
-                    Tidak ada pesanan ditemukan.
+                  <td colSpan={6} style={{ padding: '4rem', textAlign: 'center' }}>
+                    <div className="flex flex-col items-center gap-2 text-muted">
+                      <span className="text-3xl opacity-50">📋</span>
+                      <p className="m-0 font-medium">Belum ada pesanan ditemukan</p>
+                      <span className="text-xs">Ubah filter atau buat pesanan baru.</span>
+                    </div>
                   </td>
                 </tr>
               ) : (
                 currentOrders.map(order => (
                   <tr key={order.id} style={{ borderBottom: '1px solid rgba(var(--border), 0.2)' }} className="hover-bg">
-                    <td style={{ padding: '1rem', fontWeight: 500 }}>{order.orderNumber}</td>
+                    <td style={{ padding: '1rem' }}>
+                      <div className="flex flex-col">
+                        <span style={{ fontWeight: 500 }}>{order.orderNumber}</span>
+                        {order.createdAt && <span className="text-xs text-muted">{timeAgo(order.createdAt)}</span>}
+                      </div>
+                    </td>
                     <td style={{ padding: '1rem' }}>{order.customerName}</td>
                     <td style={{ padding: '1rem', textTransform: 'capitalize' }}>{order.platform}</td>
                     <td style={{ padding: '1rem' }}>{order.totalPrice ? `Rp ${order.totalPrice.toLocaleString('id-ID')}` : '-'}</td>
@@ -144,7 +154,10 @@ export default function OrderListClient({ initialOrders }: { initialOrders: any[
       {/* Mobile Card List View */}
       <div className="mobile-card-list desktop-hidden">
         {currentOrders.length === 0 ? (
-          <div className="text-center text-muted p-4">Tidak ada pesanan ditemukan.</div>
+          <div className="flex flex-col items-center justify-center p-8 text-muted gap-2 text-center" style={{ minHeight: '20vh' }}>
+            <span className="text-4xl opacity-50">📋</span>
+            <span className="font-medium text-sm">Belum ada pesanan berjalan</span>
+          </div>
         ) : (
           currentOrders.map(order => (
             <div key={order.id} className="mobile-card-item">
@@ -152,6 +165,7 @@ export default function OrderListClient({ initialOrders }: { initialOrders: any[
                 <div className="flex flex-col">
                   <span style={{ fontWeight: 600, fontSize: '1.1rem' }}>{order.orderNumber}</span>
                   <span className="text-muted" style={{ fontSize: '0.875rem' }}>{order.customerName}</span>
+                  {order.createdAt && <span className="text-xs text-muted mt-1">🕒 {timeAgo(order.createdAt)}</span>}
                 </div>
                 <div>{getStatusBadge(order.status)}</div>
               </div>

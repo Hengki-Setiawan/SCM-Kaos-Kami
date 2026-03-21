@@ -56,7 +56,7 @@ export default function NewOrderForm({ products, initialCustomerName = '', initi
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-      <div className="grid grid-cols-2 gap-4 mobile-col">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold">Nama Pelanggan / Resi</label>
           <input 
@@ -86,8 +86,8 @@ export default function NewOrderForm({ products, initialCustomerName = '', initi
         <h3 className="border-b border-[rgba(var(--border),0.5)] pb-2">Daftar Produk</h3>
         
         {items.map((item, index) => (
-          <div key={index} className="flex gap-4 items-end mobile-col">
-            <div className="flex flex-col gap-2" style={{ flex: 2 }}>
+          <div key={index} className="flex flex-col md:flex-row gap-4 md:items-end p-4 border border-[rgba(var(--border),0.5)] rounded-lg md:border-none md:p-0">
+            <div className="flex flex-col gap-2 w-full md:flex-[2]">
               <label className="text-sm font-semibold">Pilih Produk</label>
               <select 
                 className="input-field"
@@ -104,35 +104,38 @@ export default function NewOrderForm({ products, initialCustomerName = '', initi
                 )})}
               </select>
             </div>
-            <div className="flex flex-col gap-2" style={{ flex: 1 }}>
-              <label className="text-sm font-semibold">Jumlah</label>
-              <input 
-                type="number" 
-                min="1"
-                className="input-field"
-                value={item.quantity}
-                onChange={e => handleItemChange(index, 'quantity', parseInt(e.target.value) || 0)}
-              />
+            
+            <div className="flex gap-4 w-full md:w-auto">
+              <div className="flex flex-col gap-2 flex-1">
+                <label className="text-sm font-semibold">Jumlah</label>
+                <input 
+                  type="number" 
+                  min="1"
+                  className="input-field"
+                  value={item.quantity}
+                  onChange={e => handleItemChange(index, 'quantity', parseInt(e.target.value) || 0)}
+                />
+              </div>
+              <div className="flex flex-col gap-2 flex-[2]">
+                <label className="text-sm font-semibold">Harga</label>
+                <input 
+                  type="number" 
+                  className="input-field"
+                  value={item.unitPrice}
+                  onChange={e => handleItemChange(index, 'unitPrice', parseInt(e.target.value) || 0)}
+                />
+              </div>
+              {items.length > 1 && (
+                <button 
+                  type="button" 
+                  onClick={() => removeItem(index)}
+                  className="btn btn-danger self-end justify-center" 
+                  style={{ height: '42px', padding: '0 1rem' }}
+                >
+                  🗑️
+                </button>
+              )}
             </div>
-            <div className="flex flex-col gap-2" style={{ flex: 1 }}>
-              <label className="text-sm font-semibold">Harga Satuan</label>
-              <input 
-                type="number" 
-                className="input-field"
-                value={item.unitPrice}
-                onChange={e => handleItemChange(index, 'unitPrice', parseInt(e.target.value) || 0)}
-              />
-            </div>
-            {items.length > 1 && (
-              <button 
-                type="button" 
-                onClick={() => removeItem(index)}
-                className="btn btn-danger" 
-                style={{ height: '45px', width: '45px', padding: 0 }}
-              >
-                🗑️
-              </button>
-            )}
           </div>
         ))}
         

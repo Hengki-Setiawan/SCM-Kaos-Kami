@@ -9,13 +9,40 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: { default: 'Kaos Kami SCM', template: '%s — Kaos Kami SCM' },
-  description: 'Supply Chain Management System untuk Kaos Kami',
+  description: 'Supply Chain Management System eksklusif untuk operasional Kaos Kami, mengelola stok, pesanan, dan AI analytics secara real-time.',
+  keywords: ['SCM', 'Kaos Kami', 'Gudang', 'ERP', 'Warehouse Management'],
+  authors: [{ name: 'Kaos Kami SCM Team' }],
   manifest: '/manifest.json',
   appleWebApp: {
     title: 'Kaos Kami',
     statusBarStyle: 'black-translucent',
     capable: true,
   },
+  openGraph: {
+    title: 'Kaos Kami SCM',
+    description: 'Sistem Manajemen Rantai Pasok pintar untuk Kaos Kami',
+    url: 'https://kaoskami-scm.vercel.app',
+    siteName: 'Kaos Kami SCM',
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'Kaos Kami SCM Dashboard',
+      },
+    ],
+    locale: 'id_ID',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Kaos Kami SCM',
+    description: 'Sistem Manajemen Gudang Pintar',
+  },
+  icons: {
+    icon: '/favicon.svg',
+    apple: '/icon-192x192.png'
+  }
 };
 
 export const viewport = {

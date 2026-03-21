@@ -41,6 +41,7 @@ export default function Sidebar() {
               <li key={item.path}>
                 <Link 
                   href={item.path}
+                  aria-label={item.name}
                   style={{
                     display: 'flex',
                     alignItems: 'center',

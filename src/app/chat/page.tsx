@@ -72,9 +72,9 @@ export default function ChatPage() {
           {messages.map(msg => (
             <div 
               key={msg.id} 
+              className="max-w-[85%] md:max-w-[65%]"
               style={{ 
                 alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
-                maxWidth: '65%',
                 background: msg.role === 'user' ? 'linear-gradient(135deg, rgb(var(--primary)), rgb(var(--accent)))' : 'rgba(var(--surface-hover), 0.8)',
                 color: msg.role === 'user' ? 'white' : 'inherit',
                 padding: '1rem',

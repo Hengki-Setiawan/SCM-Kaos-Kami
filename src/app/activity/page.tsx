@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { getStockMovements } from '../actions/stock';
 
+import { timeAgo } from '@/lib/utils';
+
 export default function ActivityPage() {
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,7 +64,7 @@ export default function ActivityPage() {
                 logs.map(log => (
                   <tr key={log.id} style={{ borderBottom: '1px solid rgba(var(--border), 0.1)' }} className="zebra-row">
                     <td style={{ padding: '1rem', fontSize: '0.85rem' }} className="text-muted">
-                      {new Date(log.createdAt).toLocaleString('id-ID')}
+                      {timeAgo(log.createdAt)}
                     </td>
                     <td style={{ padding: '1rem' }}>
                       <div className="flex flex-col">

@@ -348,9 +348,10 @@ export default function StockTableClient({ initialProducts, categories }: { init
       {/* Mobile Card List View */}
       <div className="mobile-card-list desktop-hidden">
         {currentItems.length === 0 ? (
-          <div className="text-center text-muted p-4">
-            <span style={{ fontSize: '2rem', display: 'block', marginBottom: '0.5rem' }}>📦</span>
-            Tidak ada produk ditemukan.
+          <div className="flex flex-col items-center justify-center p-8 text-muted gap-2 text-center" style={{ minHeight: '20vh' }}>
+            <span className="text-4xl opacity-50 mb-2">📦</span>
+            <span className="font-medium text-sm">Tidak ada produk ditemukan</span>
+            <span className="text-xs mt-1">Gunakan tombol "Produk Baru" di atas.</span>
           </div>
         ) : (
           currentItems.map(product => {
