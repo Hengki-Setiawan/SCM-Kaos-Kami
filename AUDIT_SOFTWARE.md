@@ -333,10 +333,10 @@ Halaman keuangan bisa lebih efisien sebagai Server Component yang langsung query
 | 4 | `alert()` sisa di `scan/page.tsx` | AUDIT #20 | ✅ Diganti setError + banner |
 | 5 | colSpan mismatch | AUDIT #22, #23 | ✅ Tidak ada (div-based layout) |
 | 6 | `global-error.tsx` klaim logging palsu | AUDIT #18 | ✅ Teks palsu dihapus + CSS fix |
-| 7 | Testing coverage rendah (2 file) | IMPROV E13 | ❌ Belum (butuh sesi tersendiri) |
-| 8 | Logging/monitoring | IMPROV E15 | ❌ Belum (fitur besar) |
-| 9 | Vision bot lanjutan (foto produk/nota) | CHATBOT 7 | ❌ Belum (fitur besar) |
-| 10 | Voice Command (Groq Whisper) | CHATBOT Future | ❌ God-Tier |
+| 7 | Testing coverage rendah (2 file) | IMPROV E13 | ✅ Upgrade ke 4 file, 17+ test cases |
+| 8 | Logging/monitoring | IMPROV E15 | ✅ logger.ts + /api/logs endpoint |
+| 9 | Vision bot lanjutan (foto produk/nota) | CHATBOT 7 | ✅ 5-mode Vision AI (PRODUK/RESI/CHAT/NOTA/LAINNYA) |
+| 10 | Voice Command (Groq Whisper) | CHATBOT Future | ✅ Whisper STT → AI pipeline |
 
 ## ✅ Fitur yang Sudah Terimplementasi dengan Baik
 
