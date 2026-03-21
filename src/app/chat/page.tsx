@@ -74,7 +74,7 @@ export default function ChatPage() {
               key={msg.id} 
               style={{ 
                 alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
-                maxWidth: '80%',
+                maxWidth: '65%',
                 background: msg.role === 'user' ? 'linear-gradient(135deg, rgb(var(--primary)), rgb(var(--accent)))' : 'rgba(var(--surface-hover), 0.8)',
                 color: msg.role === 'user' ? 'white' : 'inherit',
                 padding: '1rem',

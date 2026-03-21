@@ -1,7 +1,7 @@
 import { Bot, webhookCallback, InlineKeyboard, Keyboard, InputFile } from 'grammy';
 import { db } from '@/db';
-import { products, orders, stockMovements, categories, telegramUsers } from '@/db/schema';
-import { desc, eq, sql, lte } from 'drizzle-orm';
+import { products, orders, stockMovements, categories, telegramUsers, expenses } from '@/db/schema';
+import { desc, eq, sql, lte, gte, and } from 'drizzle-orm';
 import { Groq } from 'groq-sdk';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -47,7 +47,8 @@ function getSession(chatId: number) {
 const mainMenu = new Keyboard()
   .text('📦 Cek Stok').text('⚠️ Low Stock').row()
   .text('📋 Pesanan').text('📈 Laporan').row()
-  .text('🤖 Tanya AI').text('⚙️ Menu Lain').row()
+  .text('💸 Catat Biaya').text('🤖 Tanya AI').row()
+  .text('⚙️ Menu Lain').row()
   .resized().persistent();
 
 const menuLain = new Keyboard()
@@ -102,8 +103,9 @@ bot.command('start', async (ctx) => {
     `📦 Cek stok real-time\n` +
     `📋 Kelola pesanan \u0026 pengiriman\n` +
     `📸 Scan resi otomatis (kirim foto)\n` +
+    `💸 Catat pengeluaran (ketik: "Beli lakban 50rb")\n` +
     `🎙️ Voice command (kirim voice note)\n` +
-    `📈 Laporan \u0026 analisis bisnis\n` +
+    `📈 Laba Rugi \u0026 analisis bisnis\n` +
     `🧮 Kalkulator harga AI\n\n` +
     `─────────────────────────\n` +
     `💡 *Coba ketik:* _"Stok kaos hitam L"_\n` +
@@ -266,19 +268,38 @@ bot.hears('📈 Laporan', async (ctx) => {
       assetValue: sql<number>`coalesce(sum(${products.currentStock} * ${products.buyPrice}), 0)`
     }).from(products);
 
-    const pendingCount = await db.select({
-      c: sql<number>`count(${orders.id})`
-    }).from(orders).where(sql`${orders.status} = 'pending'`);
+    const today = new Date().toISOString().split('T')[0];
+    const firstOfMonth = new Date();
+    firstOfMonth.setDate(1);
+    const startOfMonth = firstOfMonth.toISOString().split('T')[0];
+
+    const financialStats = await db.select({
+      revenue: sql<number>`coalesce(sum(${orders.totalPrice}), 0)`,
+      orderCount: sql<number>`count(${orders.id})`
+    }).from(orders).where(and(gte(orders.createdAt, startOfMonth), sql`${orders.status} != 'cancelled'`));
+
+    const expenseStats = await db.select({
+      total: sql<number>`coalesce(sum(${expenses.amount}), 0)`
+    }).from(expenses).where(gte(expenses.date, startOfMonth));
+
+    const rev = financialStats[0].revenue;
+    const exp = expenseStats[0].total;
+    const profit = rev - exp;
 
     const s = stats[0];
     const now = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
 
-    const msg = `📈 *Laporan — ${now}*\n\n` +
-      `📦 Varian Produk: *${s.total}*\n` +
-      `🏪 Total Item Gudang: *${s.totalStock}* pcs\n` +
-      `💰 Estimasi Nilai Aset: *Rp ${new Intl.NumberFormat('id-ID').format(s.assetValue)}*\n` +
-      `⚠️ Produk Low Stock: *${s.lowCount}*\n` +
-      `📋 Pesanan Pending: *${pendingCount[0].c}*\n`;
+    const msg = `📈 *Ringkasan SCM — ${now}*\n\n` +
+      `*DATA STOK:*\n` +
+      `📦 Varian: *${s.total}* | Item: *${s.totalStock}*\n` +
+      `💰 Aset Gudang: *Rp ${new Intl.NumberFormat('id-ID').format(s.assetValue)}*\n` +
+      `⚠️ Low Stock: *${s.lowCount}*\n\n` +
+      `*FINANSIAL (Bulan Ini):*\n` +
+      `💰 Penjualan: *Rp ${new Intl.NumberFormat('id-ID').format(rev)}*\n` +
+      `💸 Pengeluaran: *Rp ${new Intl.NumberFormat('id-ID').format(exp)}*\n` +
+      `✨ Laba Bersih: *Rp ${new Intl.NumberFormat('id-ID').format(profit)}*\n` +
+      `─────────────────────────\n` +
+      `🛍️ Total ${financialStats[0].orderCount} pesanan sukses bulan ini.\n`;
 
     const keyboard = new InlineKeyboard()
       .text('⚠️ Lihat Low Stock', 'btn_lowstock')
@@ -348,6 +369,10 @@ bot.callbackQuery('btn_csv', async (ctx) => {
 });
 
 // ==================== ⚙️ MENU LAIN ====================
+bot.hears('💸 Catat Biaya', async (ctx) => {
+  await ctx.reply('💸 *Cara mencatat biaya via chat:*\n\nKetik langsung seperti:\n• _"Beli lakban 50rb"_\n• _"Bayar gaji staff 2jt"_\n• _"Bayar listrik 500ribu"_\n\nSaya akan mendeteksi nominal dan kategorinya otomatis!', { parse_mode: 'Markdown' });
+});
+
 bot.hears('⚙️ Menu Lain', async (ctx) => {
   await ctx.reply('⚙️ Menu tambahan:', { reply_markup: menuLain });
 });
@@ -520,9 +545,26 @@ bot.on('message:text', async (ctx) => {
     session.contextMessages.push({ role: 'user', content: text });
     if (session.contextMessages.length > 5) session.contextMessages.shift();
 
-    // 1. Cek apakah ini aksi database (kurangi/tambah/kirim)
+    // 1. Cek apakah ini aksi database (kurangi/tambah/kirim/biaya)
     const actionIntent = await parseAIIntent(text, session.contextMessages);
     
+    if (actionIntent && actionIntent.action === 'LOG_EXPENSE') {
+       const confirmKeyboard = new InlineKeyboard()
+        .text('✅ Catat Biaya', 'confirm_action')
+        .text('❌ Batal', 'cancel_action');
+       
+       session.pendingAction = actionIntent;
+       await ctx.reply(
+         `💸 *Konfirmasi Pengeluaran*\n\n` +
+         `📝 Judul: ${actionIntent.title}\n` +
+         `📂 Kategori: ${actionIntent.category}\n` +
+         `💰 Nominal: *Rp ${new Intl.NumberFormat('id-ID').format(actionIntent.qty)}*\n\n` +
+         `Catat sekarang?`,
+         { parse_mode: 'Markdown', reply_markup: confirmKeyboard }
+       );
+       return;
+    }
+
     if (actionIntent && actionIntent.action !== 'CHAT') {
       // Tampilkan KONFIRMASI, jangan langsung eksekusi
       const allProducts = await db.select().from(products);
@@ -604,7 +646,19 @@ bot.callbackQuery('confirm_action', async (ctx) => {
     return;
   }
 
-  try {
+    if (action.action === 'LOG_EXPENSE') {
+      await db.insert(expenses).values({
+        id: uuidv4(),
+        title: action.title,
+        category: action.category || 'operasional',
+        amount: action.qty,
+        date: new Date().toISOString().split('T')[0],
+      });
+      session.pendingAction = undefined;
+      await ctx.editMessageText(`✅ Berhasil mencatat biaya: *${action.title}* senilai *Rp ${new Intl.NumberFormat('id-ID').format(action.qty)}*`, { parse_mode: 'Markdown' });
+      return;
+    }
+
     const { parseAndExecuteAIAction } = await import('@/lib/ai-actions');
     // Reconstruct the original command text for the parser
     let cmdText = '';
@@ -691,7 +745,7 @@ async function parseAIIntent(text: string, contextMessages: {role: string, conte
     const catalogStr = allProd.map(p => `[SKU: ${p.sku}] ${p.name}`).join('\\n');
     let ctxStr = contextMessages.map(m => `${m.role}: ${m.content}`).join('\\n');
     
-    const systemContent = `Anda menganalisis pesan dan return JSON. PENTING: Untuk perintah ganti stok, set stok, ubah stok jadi X, pastikan mengembalikan 'UPDATE_STOCK' dengan qty berisi angka tersebut.\\nActions: "PROCESS_ORDER","DEDUCT_STOCK","ADD_STOCK","UPDATE_STOCK","CHAT".\\nFormat: {"action":"TIPE","sku":"namasku","qty":angka}. Jika hanya ngobrol kembalikan "CHAT".\\n\\n⚡ SANGAT PENTING: Jika mengembalikan aksi gudang, cocokkan barang yang diminta user dengan KATALOG INI:\\n${catalogStr}\\n\\nIsi field "sku" di JSON dengan *SKU persis* atau *Nama persis* dari katalog di atas yang paling cocok!\\n\\nKonteks Percakapan Sebelumnya: \\n${ctxStr}\\n\\nPesan Saat Ini: "${text}"`;
+    const systemContent = `Anda menganalisis pesan dan return JSON. PENTING: Untuk perintah ganti stok, set stok, ubah stok jadi X, pastikan mengembalikan 'UPDATE_STOCK' dengan qty berisi angka tersebut.\\nActions: "PROCESS_ORDER","DEDUCT_STOCK","ADD_STOCK","UPDATE_STOCK","LOG_EXPENSE","CHAT".\\n"LOG_EXPENSE" butuh field "title" (string) dan "category" (gaji/bahanbaku/sewa/iklan/operasional).\\nFormat: {"action":"TIPE","sku":"namasku","qty":angka,"title":"...","category":"..."}. Jika hanya ngobrol kembalikan "CHAT".\\n\\n⚡ SANGAT PENTING: Jika mengembalikan aksi gudang (bukan expense), cocokkan barang yang diminta user dengan KATALOG INI:\\n${catalogStr}\\n\\nIsi field "sku" di JSON dengan *SKU persis* atau *Nama persis* dari katalog di atas yang paling cocok!\\n\\nKonteks Percakapan Sebelumnya: \\n${ctxStr}\\n\\nPesan Saat Ini: "${text}"`;
     
     const completion = await groq.chat.completions.create({
       messages: [{ role: 'system', content: systemContent }],

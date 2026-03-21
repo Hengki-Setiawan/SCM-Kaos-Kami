@@ -77,10 +77,10 @@ export default function AnalysisPage() {
       </div>
 
       {analysis && (
-        <div className="grid grid-cols-3 gap-6">
+        <div className="grid grid-cols-3 gap-6" style={{ gridTemplateRows: 'auto' }}>
           
           {/* Main Score Card */}
-          <div className="col-span-1 glass-card flex flex-col items-center justify-center text-center p-8">
+          <div className="glass-card flex flex-col items-center justify-center text-center p-8" style={{ gridColumn: 'span 1' }}>
             <h3 className="text-muted text-sm mb-4">Skor Kesehatan Gudang</h3>
             <div 
                className="w-32 h-32 rounded-full border-8 flex items-center justify-center text-4xl font-black mb-4"
@@ -92,7 +92,7 @@ export default function AnalysisPage() {
           </div>
 
           {/* AI Summary */}
-          <div className="col-span-2 glass-card flex flex-col gap-4">
+          <div className="glass-card flex flex-col gap-4" style={{ gridColumn: 'span 2' }}>
             <h3>Executive Summary</h3>
             <p className="text-muted leading-relaxed">{analysis.summary}</p>
             
@@ -113,7 +113,7 @@ export default function AnalysisPage() {
           </div>
 
           {/* Action Items */}
-          <div className="col-span-3 grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-2 gap-6" style={{ gridColumn: '1 / -1' }}>
             <div className="glass-card" style={{ borderTop: '4px solid rgb(var(--danger))' }}>
               <h3 className="mb-4 text-[rgb(var(--danger))]">🔥 Action Mendasak (Harus Beli)</h3>
               <ul className="flex flex-col gap-3 list-none p-0 m-0">
@@ -142,7 +142,7 @@ export default function AnalysisPage() {
           </div>
 
           {/* Predictive AI Section */}
-          <div className="col-span-3 glass-card" style={{ borderTop: '4px solid rgb(var(--primary))' }}>
+          <div className="glass-card" style={{ borderTop: '4px solid rgb(var(--primary))', gridColumn: '1 / -1' }}>
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-[rgb(var(--primary))]">🔮 Prediksi Kehabisan Stok (AI)</h3>
               {isPredicting && <span className="text-muted text-sm animate-pulse">Memproses 30 hari data terakhir...</span>}

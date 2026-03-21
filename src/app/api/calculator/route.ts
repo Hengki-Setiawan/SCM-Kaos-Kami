@@ -8,7 +8,13 @@ const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 });
 
+import { checkRateLimit } from '@/lib/rate-limiter';
+
 export async function POST(req: Request) {
+  const ip = req.headers.get('x-forwarded-for') || 'anonymous';
+  const { allowed } = checkRateLimit(`calc:${ip}`, 20, 60000);
+  if (!allowed) return NextResponse.json({ error: 'Terlalu banyak request.' }, { status: 429 });
+
   try {
     const { input } = await req.json();
 

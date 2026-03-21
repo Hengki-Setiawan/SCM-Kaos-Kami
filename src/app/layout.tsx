@@ -8,7 +8,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'Kaos Kami SCM',
+  title: { default: 'Kaos Kami SCM', template: '%s — Kaos Kami SCM' },
   description: 'Supply Chain Management System untuk Kaos Kami',
   manifest: '/manifest.json',
   appleWebApp: {
@@ -21,12 +21,22 @@ export const metadata: Metadata = {
 export const viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  maximumScale: 5,
+  userScalable: true,
   viewportFit: 'cover',
 };
 
+import { validateEnv } from '@/lib/env';
+
+// E5: Validate env on boot
+validateEnv();
+
 import AppLayout from '@/components/layout/AppLayout';
+import { ToastProvider } from '@/components/Toast';
+import { ConfirmProvider } from '@/components/ConfirmDialog';
+
+import SearchModal from '@/components/SearchModal';
+import InstallBanner from '@/components/InstallBanner';
 
 export default function RootLayout({
   children,
@@ -36,10 +46,17 @@ export default function RootLayout({
   return (
     <html lang="id">
       <body className={inter.variable}>
-        <AppLayout>
-          {children}
-        </AppLayout>
+        <ToastProvider>
+          <ConfirmProvider>
+            <AppLayout>
+              {children}
+            </AppLayout>
+            <SearchModal />
+            <InstallBanner />
+          </ConfirmProvider>
+        </ToastProvider>
       </body>
     </html>
   );
 }
+

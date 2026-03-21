@@ -96,7 +96,20 @@ export async function GET(req: Request) {
       }
     }
 
-    return NextResponse.json({ message: 'Tidak ada alert baru yang perlu dikirim.' });
+    // 5. DB Cleanup (E10): Hapus alert lama (> 30 hari) dan logs lama
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    // cleanup alerts
+    await db.delete(alerts).where(lte(alerts.createdAt, thirtyDaysAgo));
+    // cleanup audit logs if exists (stock movements) - actually movement is important so keep it.
+    // but alerts can be cleaned.
+
+    return NextResponse.json({ 
+      message: sentCount > 0 ? `Peringatan terkirim ke ${sentCount} admin.` : 'Check selesai, database dibersihkan.',
+      count: itemsToAlert,
+      cleanup: 'Alerts > 30 hari dihapus'
+    });
 
   } catch (error: any) {
     console.error('Cron Stock Check Error:', error);

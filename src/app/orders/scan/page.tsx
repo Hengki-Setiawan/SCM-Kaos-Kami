@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 
 export default function ScanReceiptPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -14,7 +15,17 @@ export default function ScanReceiptPage() {
       const selectedFile = e.target.files[0];
       setFile(selectedFile);
       setPreviewURL(URL.createObjectURL(selectedFile));
-      setScanResult(null); // reset
+      setScanResult(null);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const dropped = e.dataTransfer.files[0];
+    if (dropped && dropped.type.startsWith('image/')) {
+      setFile(dropped);
+      setPreviewURL(URL.createObjectURL(dropped));
+      setScanResult(null);
     }
   };
 
@@ -74,6 +85,8 @@ export default function ScanReceiptPage() {
         {/* Upload Area */}
         <div 
           className="border-2 border-dashed border-[rgba(var(--primary),0.5)] rounded-2xl w-full h-64 flex flex-col items-center justify-center relative hover-bg cursor-pointer transition-all"
+          onDrop={handleDrop}
+          onDragOver={e => e.preventDefault()}
         >
           <input 
             type="file" 

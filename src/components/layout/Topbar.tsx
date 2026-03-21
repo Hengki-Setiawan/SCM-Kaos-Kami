@@ -1,40 +1,75 @@
 'use client';
 
 import Link from 'next/link';
-import { Search, Bell, AlertTriangle } from 'lucide-react';
+import { Search, Bell, AlertTriangle, Moon, Sun } from 'lucide-react';
 import useSWR from 'swr';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const fetcher = (url: string) => fetch(url).then(res => res.json()).then(res => res.data);
 
 export default function Topbar() {
-  const { data } = useSWR('/api/dashboard/stats', fetcher, { refreshInterval: 10000 });
+  const { data } = useSWR('/api/dashboard/stats', fetcher, { refreshInterval: 30000 });
   const lowStockCount = data?.stats?.lowStockItems || 0;
   const lowStockList = data?.lowStockList || [];
   const [showNotif, setShowNotif] = useState(false);
+  const [isDark, setIsDark] = useState(false);
+  const [profile, setProfile] = useState({ brandName: 'Kaos Kami', adminName: 'Hengki Setiawan' });
+
+  useEffect(() => {
+    const saved = localStorage.getItem('theme');
+    if (saved === 'dark') { setIsDark(true); document.documentElement.classList.add('dark'); }
+    
+    const loadProfile = () => {
+      const savedProfile = localStorage.getItem('business_profile');
+      if (savedProfile) {
+        try { setProfile(JSON.parse(savedProfile)); } catch(e) {}
+      }
+    };
+    loadProfile();
+    window.addEventListener('business_profile_updated', loadProfile);
+    return () => window.removeEventListener('business_profile_updated', loadProfile);
+  }, []);
+
+  const toggleDark = () => {
+    const next = !isDark;
+    setIsDark(next);
+    document.documentElement.classList.toggle('dark', next);
+    localStorage.setItem('theme', next ? 'dark' : 'light');
+  };
+
+  // Ctrl+K opens search dialog (handled by SearchDialog component)
+  const openSearch = () => {
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }));
+  };
 
   return (
-    <header className="topbar glass-panel justify-between" style={{ borderRadius: 0, borderTop: 0, borderRight: 0, borderLeft: 0 }}>
-      <div className="flex items-center gap-4" style={{ flex: 1, maxWidth: '400px' }}>
-        {/* Global Search */}
-        <Link 
-          href="/stock"
-          className="input-field flex items-center gap-2 touch-target" 
-          style={{ width: '100%', cursor: 'pointer', padding: '0.5rem 1rem', textDecoration: 'none', transition: 'all 0.2s' }}
+    <header className="topbar glass-panel justify-between" role="banner" style={{ borderRadius: 0, borderTop: 0, borderRight: 0, borderLeft: 0 }}>
+      <div className="flex items-center gap-3 w-full" style={{ flex: 1, maxWidth: '400px', minWidth: 0 }}>
+        <button 
+          onClick={openSearch}
+          className="input-field flex items-center gap-2 touch-target w-full" 
+          aria-label="Buka pencarian (Ctrl+K)"
+          style={{ minWidth: 0, cursor: 'pointer', padding: '0.5rem 0.8rem', textDecoration: 'none', transition: 'all 0.2s', textAlign: 'left', border: '1px solid rgba(var(--border), 0.7)', background: 'rgba(var(--surface), 0.5)' }}
         >
-          <Search size={16} className="text-muted" />
-          <span className="text-muted" style={{ flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Cari SKU atau Barang...</span>
-          <kbd className="mobile-hidden" style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', background: 'rgba(var(--foreground-rgb), 0.08)', borderRadius: '4px' }}>Cari</kbd>
-        </Link>
+          <Search size={16} className="text-muted flex-shrink-0" />
+          <span className="text-muted truncate min-w-0 text-left text-sm" style={{ flex: 1 }}>Cari SKU/Barang...</span>
+          <kbd className="mobile-hidden flex-shrink-0" style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', background: 'rgba(var(--foreground-rgb), 0.08)', borderRadius: '4px' }}>Ctrl+K</kbd>
+        </button>
       </div>
 
-      <div className="flex items-center gap-3">
-        {/* Notification Bell — REAL data */}
+      <div className="flex items-center gap-2">
+        {/* Dark Mode Toggle — D1 */}
+        <button onClick={toggleDark} className="btn-ghost" aria-label={isDark ? 'Mode terang' : 'Mode gelap'} title={isDark ? 'Mode Terang' : 'Mode Gelap'}>
+          {isDark ? <Sun size={18} /> : <Moon size={18} />}
+        </button>
+
+        {/* Notification Bell */}
         <div style={{ position: 'relative' }}>
           <button 
             onClick={() => setShowNotif(!showNotif)}
-            className="flex items-center justify-center" 
-            style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(var(--surface-hover), 0.5)', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
+            className="btn-ghost" 
+            aria-label={`Notifikasi stok menipis (${lowStockCount})`}
+            style={{ width: '40px', height: '40px', borderRadius: '50%', position: 'relative' }}
           >
             <Bell size={20} />
           </button>
@@ -49,7 +84,6 @@ export default function Topbar() {
             </span>
           )}
 
-          {/* Notification Dropdown */}
           {showNotif && (
             <div style={{
               position: 'absolute', top: '48px', right: 0, width: '280px', maxHeight: '300px',
@@ -78,14 +112,15 @@ export default function Topbar() {
         
         <div className="flex items-center gap-2" style={{ padding: '0.25rem 0.25rem 0.25rem 0.5rem', borderLeft: '1px solid rgba(var(--border), 0.5)' }}>
           <div className="flex flex-col text-right mobile-hidden">
-            <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>Hengki Setiawan</span>
-            <span style={{ fontSize: '0.75rem' }} className="text-muted">Admin</span>
+            <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>{profile.adminName}</span>
+            <span style={{ fontSize: '0.75rem' }} className="text-muted">Admin {profile.brandName}</span>
           </div>
           <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'linear-gradient(135deg, rgb(var(--primary)), rgb(var(--accent)))', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.8rem' }}>
-            HS
+            {profile.adminName.substring(0,2).toUpperCase()}
           </div>
         </div>
       </div>
     </header>
   );
 }
+

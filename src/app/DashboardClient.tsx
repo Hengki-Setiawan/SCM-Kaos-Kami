@@ -2,22 +2,29 @@
 
 import useSWR from 'swr';
 import Link from 'next/link';
-import { Boxes, Warehouse, AlertTriangle, Clock, History, FileText, Package, TrendingUp, Calculator, Settings, ScanLine, Sparkles, Plus } from 'lucide-react';
+import { Boxes, Warehouse, AlertTriangle, Clock, History, FileText, Package, TrendingUp, Calculator, Settings, ScanLine, Sparkles, Plus, BarChart3, Wallet, TrendingDown } from 'lucide-react';
 
 const fetcher = (url: string) => fetch(url).then(res => res.json()).then(res => res.data);
 
 export default function DashboardClient({ initialData }: { initialData: any }) {
   const { data, error } = useSWR('/api/dashboard/stats', fetcher, {
     fallbackData: initialData,
-    refreshInterval: 5000, // Poll every 5 seconds for real-time feel
+    refreshInterval: 30000,
     revalidateOnFocus: true,
   });
 
+  const { data: chartData } = useSWR('/api/dashboard/charts', fetcher);
+
   const displayData = data || initialData;
-  const { totalProducts, totalStock, lowStockItems, totalValue } = displayData.stats;
+  const { totalProducts, totalStock, lowStockItems, totalValue, revenue, expense, hpp, netProfit } = displayData.stats;
   const pendingOrderCount = displayData.pendingOrderCount;
   const recentMovements = displayData.recentMovements || [];
   const lowStockList = displayData.lowStockList || [];
+
+  const formatIDR = (val: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
+
+  // Chart scaling logic
+  const maxVal = chartData ? Math.max(...chartData.map((d: any) => Math.max(d.revenue, d.expense)), 100000) : 100000;
 
   return (
     <>
@@ -25,13 +32,12 @@ export default function DashboardClient({ initialData }: { initialData: any }) {
         <div>
           <div className="flex items-center gap-2">
             <h1>Dashboard Kaos Kami</h1>
-            {/* Live indicator dot */}
             <span className="flex h-3 w-3 relative mb-2" title="Live Sync Active">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[rgb(var(--success))] opacity-75"></span>
               <span className="relative inline-flex rounded-full h-3 w-3 bg-[rgb(var(--success))]"></span>
             </span>
           </div>
-          <p className="text-muted">Ringkasan stok dan performa hari ini.</p>
+          <p className="text-muted">Ringkasan stok dan performa finansial hari ini.</p>
         </div>
         <div className="flex gap-2 mobile-col">
           <Link href="/orders/new" className="btn btn-primary touch-target"><Plus size={16} /> Pesanan Baru</Link>
@@ -42,8 +48,39 @@ export default function DashboardClient({ initialData }: { initialData: any }) {
         </div>
       </div>
 
+      {/* Financial Performance Grid (Phase 2 Addition) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <div className="glass-card" style={{ borderLeft: '4px solid rgb(var(--success))' }}>
+          <div className="flex justify-between items-start">
+            <div>
+              <span className="text-xs text-muted block mb-1">Total Penjualan (Gross)</span>
+              <span className="text-xl font-bold text-[rgb(var(--success))]">{formatIDR(revenue)}</span>
+            </div>
+            <TrendingUp size={20} className="text-[rgb(var(--success))]" />
+          </div>
+        </div>
+        <div className="glass-card" style={{ borderLeft: '4px solid rgb(var(--danger))' }}>
+          <div className="flex justify-between items-start">
+            <div>
+              <span className="text-xs text-muted block mb-1">Beban Operasional & HPP</span>
+              <span className="text-xl font-bold text-[rgb(var(--danger))]">{formatIDR(expense + hpp)}</span>
+            </div>
+            <TrendingDown size={20} className="text-[rgb(var(--danger))]" />
+          </div>
+        </div>
+        <div className="glass-card" style={{ background: 'linear-gradient(135deg, rgba(var(--primary),0.1), rgba(var(--accent),0.1))', borderLeft: '4px solid rgb(var(--primary))' }}>
+          <div className="flex justify-between items-start">
+            <div>
+              <span className="text-xs text-muted block mb-1">Laba Bersih (Net Profit)</span>
+              <span className="text-2xl font-bold text-[rgb(var(--primary))]">{formatIDR(netProfit)}</span>
+            </div>
+            <Wallet size={24} className="text-[rgb(var(--primary))]" />
+          </div>
+        </div>
+      </div>
+
       {/* Stats Cards */}
-      <div className="grid grid-cols-4 mobile-grid-cols-2 gap-4">
+      <div className="grid grid-cols-4 mobile-grid-cols-2 gap-6">
         <div className="glass-card flex flex-col gap-2 transition-all">
           <div className="flex items-center gap-2">
             <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(var(--primary), 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Boxes size={18} style={{ color: 'rgb(var(--primary))' }} /></div>
@@ -74,82 +111,83 @@ export default function DashboardClient({ initialData }: { initialData: any }) {
         </div>
       </div>
 
-      {/* Estimated Asset Value */}
-      <div className="glass-card transition-all" style={{ background: 'linear-gradient(135deg, rgba(var(--primary),0.08), rgba(var(--accent),0.08))' }}>
-        <span className="text-muted text-sm">💰 Estimasi Nilai Aset Gudang</span>
-        <span style={{ fontSize: '1.8rem', fontWeight: 700, display: 'block', marginTop: '0.5rem' }}>
-          Rp {new Intl.NumberFormat('id-ID').format(totalValue)}
-        </span>
-      </div>
-
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-3 gap-4 mt-2">
-
-        {/* Aktivitas Terakhir (2 cols) */}
+      <div className="grid grid-cols-3 gap-6 mt-6">
         <div className="glass-card" style={{ gridColumn: 'span 2' }}>
+          <div className="flex justify-between items-center mb-6">
+            <h3 style={{ margin: 0 }} className="flex items-center gap-2"><BarChart3 size={18} className="text-[rgb(var(--primary))]" /> Statistik Penjualan vs Biaya</h3>
+            <div className="flex gap-4">
+               <div className="flex items-center gap-1"><span style={{ width: 8, height: 8, borderRadius: '50%', background: 'rgb(var(--primary))' }}></span><span className="text-[10px] text-muted">Penjualan</span></div>
+               <div className="flex items-center gap-1"><span style={{ width: 8, height: 8, borderRadius: '50%', background: 'rgb(var(--danger))' }}></span><span className="text-[10px] text-muted">Biaya</span></div>
+            </div>
+          </div>
+          <div style={{ height: '220px', width: '100%', position: 'relative', display: 'flex', alignItems: 'flex-end', gap: '8px', paddingBottom: '20px', borderBottom: '1px solid rgba(var(--border),0.5)' }}>
+            {!chartData ? (
+               <div className="absolute inset-0 flex items-center justify-center text-muted text-sm">Loading chart...</div>
+            ) : chartData.map((d: any, i: number) => (
+              <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%', gap: '2px' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: '2px', width: '100%', height: '100%' }}>
+                  <div style={{ flex: 1, height: `${(d.revenue / maxVal) * 100}%`, background: 'rgba(var(--primary), 0.8)', borderRadius: '2px 2px 0 0', position: 'relative' }}>
+                    {d.revenue > 0 && <div className="chart-tooltip text-[8px]">{new Intl.NumberFormat('id-ID', { notation: 'compact' }).format(d.revenue)}</div>}
+                  </div>
+                  <div style={{ flex: 1, height: `${(d.expense / maxVal) * 100}%`, background: 'rgba(var(--danger), 0.8)', borderRadius: '2px 2px 0 0', position: 'relative' }}>
+                    {d.expense > 0 && <div className="chart-tooltip text-[8px] text-danger">{new Intl.NumberFormat('id-ID', { notation: 'compact' }).format(d.expense)}</div>}
+                  </div>
+                </div>
+                <div style={{ fontSize: '0.6rem', color: 'rgb(var(--text-muted))', marginTop: '8px' }}>{d.label}</div>
+              </div>
+            ))}
+          </div>
+          <style dangerouslySetInnerHTML={{ __html: `
+            .chart-tooltip {
+              position: absolute; top: -15px; left: 50%; transform: translateX(-50%); width: 100%; text-align: center; font-weight: bold;
+            }
+          `}} />
+        </div>
+
+        <div className="flex flex-col gap-6">
+          <div className="glass-card">
+            <h3 className="mb-3 flex items-center gap-2"><Sparkles size={18} /> Aksi Cepat</h3>
+            <div className="flex flex-col gap-2">
+              <Link href="/finance" className="btn btn-primary w-full text-sm"><Wallet size={14} /> Catat Pengeluaran</Link>
+              <Link href="/stock" className="btn btn-outline w-full text-sm"><Package size={14} /> Kelola Stok</Link>
+              <Link href="/orders" className="btn btn-outline w-full text-sm"><FileText size={14} /> Proses Pesanan</Link>
+              <Link href="/activity" className="btn btn-outline w-full text-sm"><History size={14} /> Jejak Audit</Link>
+              <Link href="/settings" className="btn btn-outline w-full text-sm"><Settings size={14} /> Pengaturan</Link>
+            </div>
+          </div>
+          
+          <div className="glass-card" style={{ background: 'rgba(var(--primary), 0.05)' }}>
+             <span className="text-muted text-xs block mb-1 uppercase tracking-widest">Aset Bersih</span>
+             <span className="text-xl font-bold">{formatIDR(totalValue)}</span>
+             <p className="text-[10px] text-muted mt-2 italic">Nilai estimasi total stok yang ada di gudang saat ini.</p>
+          </div>
+        </div>
+
+        <div className="glass-card" style={{ gridColumn: 'span 3' }}>
           <div className="flex justify-between items-center mb-4">
             <h3 className="flex items-center gap-2" style={{ margin: 0 }}><History size={18} /> Aktivitas Stok Terakhir</h3>
-            <Link href="/history" style={{ color: 'rgb(var(--primary))', fontSize: '0.85rem' }}>Lihat Semua →</Link>
+            <Link href="/activity" style={{ color: 'rgb(var(--primary))', fontSize: '0.85rem' }}>Lihat Semua →</Link>
           </div>
           {recentMovements.length === 0 ? (
             <p className="text-muted text-sm">Belum ada aktivitas hari ini.</p>
           ) : (
-            <div className="flex flex-col gap-2">
-              {recentMovements.map((m: any) => (
-                <div key={m.id} className="flex items-center gap-3 p-3 rounded-lg" style={{ background: 'rgba(var(--surface-hover), 0.3)' }}>
-                  <span style={{ fontSize: '1.2rem' }}>
-                    {m.type === 'IN' || m.type === 'ADJUSTMENT_IN' ? '📥' : m.type === 'OUT' || m.type === 'ADJUSTMENT_OUT' ? '📤' : '🔄'}
-                  </span>
-                  <div className="flex-1">
-                    <span className="text-sm font-semibold">{m.productName || 'Produk'}</span>
-                    <span className="text-xs text-muted block">{m.reason} • {m.createdBy || 'web'}</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {recentMovements.slice(0, 6).map((m: any) => (
+                <div key={m.id} className="flex items-center gap-3 p-3 rounded-lg border border-[rgba(var(--border),0.3)] hover:bg-[rgba(var(--surface-hover),0.2)] transition-all">
+                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: m.type === 'IN' ? 'rgba(var(--success),0.1)' : 'rgba(var(--danger),0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px' }}>
+                    {m.type === 'IN' ? '➕' : '➖'}
                   </div>
-                  <span className={`text-sm font-bold ${(m.type === 'IN' || m.type === 'ADJUSTMENT_IN') ? 'text-[rgb(var(--success))]' : 'text-[rgb(var(--danger))]'}`}>
-                    {(m.type === 'IN' || m.type === 'ADJUSTMENT_IN') ? '+' : '-'}{m.quantity}
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm font-semibold truncate block">{m.productName || 'Produk'}</span>
+                    <span className="text-[10px] text-muted block truncate">{m.reason}</span>
+                  </div>
+                  <span className={`text-sm font-bold ${m.type === 'IN' ? 'text-[rgb(var(--success))]' : 'text-[rgb(var(--danger))]'}`}>
+                    {m.type === 'IN' ? '+' : '-'}{m.quantity}
                   </span>
                 </div>
               ))}
             </div>
           )}
-        </div>
-
-        {/* Sidebar Right */}
-        <div className="flex flex-col gap-4">
-          {/* Low Stock Alert */}
-          <div className="glass-card flex flex-col items-start gap-3 transition-all" style={lowStockItems > 0 ? { borderTop: '3px solid rgb(var(--danger))' } : {}}>
-            <div className="flex justify-between items-center w-full">
-               <h3 style={{ margin: 0 }} className="flex items-center gap-2"><AlertTriangle size={18} /> Peringatan Stok</h3>
-               {lowStockItems > 0 && (
-                  <a href="/restock/po" target="_blank" className="btn btn-primary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}>
-                    <FileText size={14} /> Buat PO
-                  </a>
-               )}
-            </div>
-            {lowStockList.length > 0 ? (
-              <div className="flex flex-col gap-2 w-full">
-                {lowStockList.map((p: any) => (
-                  <Link href={`/stock/${p.id}`} key={p.id} className="flex justify-between items-center p-2 rounded-lg text-sm transition-all" style={{ background: 'rgba(var(--danger), 0.08)' }}>
-                    <span>{p.name}</span>
-                    <span className="font-bold text-[rgb(var(--danger))]">{p.currentStock}/{p.minStock}</span>
-                  </Link>
-                ))}
-              </div>
-            ) : (
-              <p className="text-muted mt-2 text-sm">Semua stok aman. ✅</p>
-            )}
-          </div>
-
-          {/* Quick Actions */}
-          <div className="glass-card">
-            <h3 className="mb-3 flex items-center gap-2"><Sparkles size={18} /> Aksi Cepat</h3>
-            <div className="flex flex-col gap-2">
-              <Link href="/restock/po" target="_blank" className="btn btn-primary w-full text-sm"><FileText size={14} /> Cetak PO Otomatis</Link>
-              <Link href="/stock" className="btn btn-outline w-full text-sm"><Package size={14} /> Kelola Stok</Link>
-              <Link href="/analysis" className="btn btn-outline w-full text-sm"><TrendingUp size={14} /> Analisis AI</Link>
-              <Link href="/calculator" className="btn btn-outline w-full text-sm"><Calculator size={14} /> Kalkulator Harga</Link>
-              <Link href="/settings" className="btn btn-outline w-full text-sm"><Settings size={14} /> Pengaturan</Link>
-            </div>
-          </div>
         </div>
       </div>
     </>

@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
-import { products, orders, stockMovements } from '@/db/schema';
-import { sql, desc, eq } from 'drizzle-orm';
+import { products, orders, stockMovements, expenses, orderItems } from '@/db/schema';
+import { sql, desc, eq, and, ne } from 'drizzle-orm';
 
 export async function GET() {
   try {
+    // 1. Basic Stock Stats
     const stats = await db.select({
       totalProducts: sql<number>`count(${products.id})`,
       totalStock: sql<number>`coalesce(sum(${products.currentStock}), 0)`,
@@ -12,9 +13,30 @@ export async function GET() {
       totalValue: sql<number>`coalesce(sum(${products.currentStock} * ${products.buyPrice}), 0)`
     }).from(products);
 
+    // 2. Financial Stats (Gross Sales)
+    const financialStats = await db.select({
+      grossRevenue: sql<number>`coalesce(sum(${orders.totalPrice}), 0)`,
+      orderCount: sql<number>`count(${orders.id})`
+    }).from(orders).where(ne(orders.status, 'cancelled'));
+
+    // 3. Expenses Stats
+    const totalExpenses = await db.select({
+      total: sql<number>`coalesce(sum(${expenses.amount}), 0)`
+    }).from(expenses);
+
+    // 4. HPP Estimation (COG) 
+    // This is an approximation based on items sold * current buyPrice of product
+    const hppStats = await db.select({
+      totalHpp: sql<number>`coalesce(sum(${orderItems.quantity} * ${products.buyPrice}), 0)`
+    })
+    .from(orderItems)
+    .leftJoin(orders, eq(orderItems.orderId, orders.id))
+    .leftJoin(products, eq(orderItems.productId, products.id))
+    .where(ne(orders.status, 'cancelled'));
+
     const pendingOrders = await db.select({
       count: sql<number>`count(${orders.id})`
-    }).from(orders).where(sql`${orders.status} = 'pending'`);
+    }).from(orders).where(eq(orders.status, 'pending'));
 
     const recentMovements = await db.select({
       id: stockMovements.id,
@@ -39,10 +61,21 @@ export async function GET() {
     .where(sql`${products.currentStock} <= ${products.minStock}`)
     .limit(8);
 
+    const revenue = financialStats[0].grossRevenue || 0;
+    const expense = totalExpenses[0].total || 0;
+    const hpp = hppStats[0].totalHpp || 0;
+    const netProfit = revenue - hpp - expense;
+
     return NextResponse.json({
       success: true,
       data: {
-        stats: stats[0],
+        stats: {
+          ...stats[0],
+          revenue,
+          expense,
+          hpp,
+          netProfit
+        },
         pendingOrderCount: pendingOrders[0].count,
         recentMovements,
         lowStockList

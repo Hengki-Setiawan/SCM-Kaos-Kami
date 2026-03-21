@@ -2,6 +2,9 @@ import { db } from '@/db';
 import { autoDeductRules, products, categories } from '@/db/schema';
 import { eq, inArray } from 'drizzle-orm';
 import AutoDeductClient from './AutoDeductClient';
+import CategoriesManager from './CategoriesManager';
+import BusinessProfileClient from './BusinessProfileClient';
+import WebhookSetup from './WebhookSetup';
 import Link from 'next/link';
 
 export default async function SettingsPage() {
@@ -39,21 +42,11 @@ export default async function SettingsPage() {
       {/* Profil Bisnis */}
       <div className="glass-card">
         <h2 style={{ fontSize: '1.25rem' }} className="mb-4">🏪 Profil Bisnis</h2>
-        <div className="grid grid-cols-2 gap-4">
+        <BusinessProfileClient />
+        
+        <div className="grid grid-cols-2 gap-4 mt-6 pt-6 border-t border-[rgba(var(--border),0.5)]">
           <div>
-            <span className="text-xs text-muted block mb-1">Nama Brand</span>
-            <span className="font-semibold text-lg">Kaos Kami</span>
-          </div>
-          <div>
-            <span className="text-xs text-muted block mb-1">Admin</span>
-            <span className="font-semibold">Hengki Setiawan</span>
-          </div>
-          <div>
-            <span className="text-xs text-muted block mb-1">Telegram Bot</span>
-            <span className="text-sm text-[rgb(var(--success))]">✅ Terhubung (@Enggriz)</span>
-          </div>
-          <div>
-            <span className="text-xs text-muted block mb-1">Database</span>
+            <span className="text-xs text-muted block mb-1">Database Provider</span>
             <span className="text-sm text-[rgb(var(--success))]">✅ Turso (libSQL)</span>
           </div>
         </div>
@@ -72,20 +65,10 @@ export default async function SettingsPage() {
         />
       </div>
 
-      {/* Kategori Management */}
+      {/* Kategori Management — B4: CRUD */}
       <div className="glass-card">
         <h2 className="mb-4" style={{ fontSize: '1.25rem' }}>🏷️ Kategori Produk ({allCategories.length})</h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          {allCategories.map((cat) => (
-            <div key={cat.id} className="p-3 rounded-lg flex items-center gap-2" style={{ background: 'rgba(var(--surface-hover), 0.3)' }}>
-              <span className="text-xl">{cat.icon || '📁'}</span>
-              <div>
-                <span className="font-semibold text-sm">{cat.name}</span>
-                <span className="block text-xs text-muted">{cat.slug}</span>
-              </div>
-            </div>
-          ))}
-        </div>
+        <CategoriesManager initialCategories={allCategories} />
       </div>
 
       {/* Konektivitas */}
@@ -100,10 +83,7 @@ export default async function SettingsPage() {
             <span>🤖 Groq AI (Chat + Vision)</span>
             <span className="text-[rgb(var(--success))] text-sm font-semibold">✅ Aktif</span>
           </div>
-          <div className="flex justify-between items-center p-3 rounded-lg" style={{ background: 'rgba(var(--surface-hover), 0.3)' }}>
-            <span>📱 Telegram Bot Webhook</span>
-            <span className="text-[rgb(var(--success))] text-sm font-semibold">✅ Aktif</span>
-          </div>
+          <WebhookSetup />
           <div className="flex justify-between items-center p-3 rounded-lg" style={{ background: 'rgba(var(--surface-hover), 0.3)' }}>
             <span>⏰ Cron Stock Alert</span>
             <span className="text-sm text-muted">/api/cron/stock-check</span>
@@ -114,7 +94,7 @@ export default async function SettingsPage() {
       {/* Quick Links */}
       <div className="glass-card">
         <h2 className="mb-4" style={{ fontSize: '1.25rem' }}>📎 Link Fitur Cepat</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           <Link href="/analysis" className="btn btn-outline text-sm w-full">📈 Analisis AI</Link>
           <Link href="/calculator" className="btn btn-outline text-sm w-full">🧮 Kalkulator</Link>
           <Link href="/history" className="btn btn-outline text-sm w-full">📜 Log Stok</Link>

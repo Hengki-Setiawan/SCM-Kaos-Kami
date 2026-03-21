@@ -5,7 +5,13 @@ const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 });
 
+import { checkRateLimit } from '@/lib/rate-limiter';
+
 export async function POST(req: Request) {
+  const ip = req.headers.get('x-forwarded-for') || 'anonymous';
+  const { allowed } = checkRateLimit(`vision:${ip}`, 5, 60000);
+  if (!allowed) return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+
   try {
     const { imageUrl } = await req.json();
 

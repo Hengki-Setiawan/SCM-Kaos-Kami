@@ -1,59 +1,54 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
-import { products, orders, categories } from '@/db/schema';
-import { sql } from 'drizzle-orm';
+import { products, orders } from '@/db/schema';
+import { sql, or, like } from 'drizzle-orm';
 
-export async function GET(req: Request) {
+export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(req.url);
+    const { searchParams } = new URL(request.url);
     const q = searchParams.get('q');
 
-    if (!q || q.trim().length < 2) {
-      return NextResponse.json({ results: [] });
+    if (!q || q.length < 2) {
+      return NextResponse.json({ success: true, data: { products: [], orders: [] } });
     }
 
     const query = `%${q.toLowerCase()}%`;
 
-    // Search Products
-    const productResults = await db.select({
+    const foundProducts = await db.select({
       id: products.id,
       name: products.name,
       sku: products.sku,
-      currentStock: products.currentStock
-    }).from(products)
-      .where(sql`lower(${products.name}) like ${query} or lower(${products.sku}) like ${query}`)
-      .limit(10);
+      stock: products.currentStock
+    })
+    .from(products)
+    .where(or(
+      sql`lower(${products.name}) like ${query}`,
+      sql`lower(${products.sku}) like ${query}`
+    ))
+    .limit(5);
 
-    // Search Orders
-    const orderResults = await db.select({
+    const foundOrders = await db.select({
       id: orders.id,
       orderNumber: orders.orderNumber,
       customerName: orders.customerName,
       status: orders.status
-    }).from(orders)
-      .where(sql`lower(${orders.customerName}) like ${query} or lower(${orders.orderNumber}) like ${query}`)
-      .limit(5);
-
-    // Search Categories 
-    const categoryResults = await db.select({
-      id: categories.id,
-      name: categories.name,
-      slug: categories.slug,
-      icon: categories.icon
-    }).from(categories)
-      .where(sql`lower(${categories.name}) like ${query}`)
-      .limit(5);
+    })
+    .from(orders)
+    .where(or(
+      sql`lower(${orders.orderNumber}) like ${query}`,
+      sql`lower(${orders.customerName}) like ${query}`
+    ))
+    .limit(5);
 
     return NextResponse.json({
-      results: {
-        products: productResults,
-        orders: orderResults,
-        categories: categoryResults
+      success: true,
+      data: {
+        products: foundProducts,
+        orders: foundOrders
       }
     });
-
   } catch (error: any) {
     console.error('Search API Error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

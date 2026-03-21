@@ -8,6 +8,8 @@ import { v4 as uuidv4 } from 'uuid';
 
 export async function updateStock(productId: string, newValue: number, previousValue: number) {
   try {
+    if (newValue < 0) return { success: false, error: 'Stok tidak boleh negatif' };
+    if (!productId) return { success: false, error: 'Product ID wajib' };
     // 1. Update the product stock
     await db.update(products)
       .set({ currentStock: newValue, updatedAt: new Date().toISOString() })
@@ -38,6 +40,7 @@ export async function updateStock(productId: string, newValue: number, previousV
 
 export async function updateMinStock(productId: string, newValue: number) {
   try {
+    if (newValue < 0) return { success: false, error: 'Minimum stok tidak boleh negatif' };
     await db.update(products)
       .set({ minStock: newValue, updatedAt: new Date().toISOString() })
       .where(eq(products.id, productId));

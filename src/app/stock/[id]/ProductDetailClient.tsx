@@ -1,9 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { updateProductDetails } from '../../actions/product';
+import { updateProductDetails, deleteProduct } from '../../actions/product';
+import { useToast } from '@/components/Toast';
+import { useConfirm } from '@/components/ConfirmDialog';
+import Image from 'next/image';
+import Link from 'next/link';
 
 export default function ProductDetailClient({ initialProduct, categories, history }: any) {
+  const { showToast } = useToast();
+  const { confirm } = useConfirm();
   const [product, setProduct] = useState(initialProduct);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -46,21 +52,29 @@ export default function ProductDetailClient({ initialProduct, categories, histor
     setIsSaving(false);
 
     if (res.success) {
-      alert('Perubahan berhasil disimpan!');
+      showToast('Perubahan berhasil disimpan!', 'success');
       setIsEditing(false);
     } else {
-      alert(res.error);
+      showToast(res.error || 'Gagal menyimpan', 'error');
     }
   };
 
+  const handleDelete = async () => {
+    const ok = await confirm({ title: '🗑️ Hapus Produk', message: `Hapus "${product.name}" secara permanen?`, confirmText: 'Hapus', danger: true });
+    if (!ok) return;
+    const res = await deleteProduct(product.id);
+    if (res.success) { showToast('Produk dihapus', 'success'); window.location.href = '/stock'; }
+    else showToast(res.error || 'Gagal menghapus', 'error');
+  };
+
   return (
-    <div className="grid grid-cols-3 gap-6">
+    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 2fr)', gap: '1.5rem' }} className="mobile-col">
       {/* Left Column - Image & Quick Edit */}
-      <div className="flex flex-col gap-4 col-span-1">
+      <div className="flex flex-col gap-4" style={{ gridColumn: 'span 1' }}>
         <div className="glass-card flex flex-col items-center">
           <div className="w-full h-64 bg-[rgba(var(--surface-hover),0.5)] rounded-xl flex items-center justify-center relative overflow-hidden mb-4">
             {product.imageUrl ? (
-              <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
+              <Image src={product.imageUrl} alt={product.name} fill className="object-cover" sizes="(max-width: 768px) 100vw, 300px" />
             ) : (
               <span className="text-4xl">📦</span>
             )}
@@ -102,12 +116,15 @@ export default function ProductDetailClient({ initialProduct, categories, histor
       </div>
 
       {/* Right Column - Attributes */}
-      <div className="col-span-2 flex flex-col gap-4">
+      <div className="flex flex-col gap-4" style={{ gridColumn: 'span 1' }}>
         <div className="glass-card">
           <div className="flex justify-between items-center mb-6">
             <h3>Spesifikasi Produk</h3>
             {!isEditing ? (
-              <button className="btn btn-outline" onClick={() => setIsEditing(true)}>✏️ Edit Detail</button>
+              <div className="flex gap-2">
+                <button className="btn btn-outline" onClick={() => setIsEditing(true)}>✏️ Edit</button>
+                <button className="btn-icon-danger" onClick={handleDelete} style={{ padding: '0.5rem 0.75rem', fontSize: '0.85rem' }}>🗑️ Hapus</button>
+              </div>
             ) : (
               <div className="flex gap-2">
                 <button className="btn text-muted" onClick={() => { setProduct(initialProduct); setIsEditing(false); }}>Batal</button>

@@ -4,6 +4,7 @@ import { db } from '@/db';
 import { products, orders } from '@/db/schema';
 import { desc } from 'drizzle-orm';
 import { parseAndExecuteAIAction } from '@/lib/ai-actions';
+import { checkRateLimit } from '@/lib/rate-limiter';
 
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
@@ -11,6 +12,11 @@ const groq = new Groq({
 
 export async function POST(req: Request) {
   try {
+    // E3: Rate limiting
+    const ip = req.headers.get('x-forwarded-for') || 'anonymous';
+    const { allowed } = checkRateLimit(`chat:${ip}`, 10, 60000);
+    if (!allowed) return NextResponse.json({ error: 'Terlalu banyak request. Coba lagi dalam 1 menit.' }, { status: 429 });
+
     const { message, context } = await req.json();
 
     if (!message) {

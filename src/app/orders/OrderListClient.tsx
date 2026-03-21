@@ -1,15 +1,24 @@
 'use client';
 
 import { useState } from 'react';
-import { updateOrderStatus } from '../actions/orders';
+import { updateOrderStatus, deleteOrder } from '../actions/orders';
+import { useToast } from '@/components/Toast';
+import { useConfirm } from '@/components/ConfirmDialog';
+import Link from 'next/link';
 
 export default function OrderListClient({ initialOrders }: { initialOrders: any[] }) {
+  const { showToast } = useToast();
+  const { confirm } = useConfirm();
   const [orders, setOrders] = useState(initialOrders);
   const [activeTab, setActiveTab] = useState('Semua');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const tabs = ['Semua', 'pending', 'processing', 'shipped', 'completed', 'cancelled'];
 
   const filteredOrders = orders.filter(o => activeTab === 'Semua' || o.status === activeTab);
+  const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
+  const currentOrders = filteredOrders.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const handleStatusChange = async (orderId: string, newStatus: string) => {
     // Optimistic
@@ -18,8 +27,22 @@ export default function OrderListClient({ initialOrders }: { initialOrders: any[
 
     const res = await updateOrderStatus(orderId, newStatus);
     if (!res.success) {
-      alert(res.error);
+      showToast(res.error || 'Gagal mengubah status', 'error');
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: oldStatus } : o));
+    } else {
+      showToast('Status diperbarui', 'success');
+    }
+  };
+
+  const handleDelete = async (orderId: string, orderNumber: string) => {
+    const ok = await confirm({ title: '🗑️ Hapus Pesanan', message: `Yakin hapus pesanan ${orderNumber}? Aksi ini tidak bisa dibatalkan.`, confirmText: 'Hapus', danger: true });
+    if (!ok) return;
+    const res = await deleteOrder(orderId);
+    if (res.success) {
+      showToast('Pesanan dihapus', 'success');
+      setOrders(prev => prev.filter(o => o.id !== orderId));
+    } else {
+      showToast(res.error || 'Gagal menghapus', 'error');
     }
   };
 
@@ -72,7 +95,7 @@ export default function OrderListClient({ initialOrders }: { initialOrders: any[
                   </td>
                 </tr>
               ) : (
-                filteredOrders.map(order => (
+                currentOrders.map(order => (
                   <tr key={order.id} style={{ borderBottom: '1px solid rgba(var(--border), 0.2)' }} className="hover-bg">
                     <td style={{ padding: '1rem', fontWeight: 500 }}>{order.orderNumber}</td>
                     <td style={{ padding: '1rem' }}>{order.customerName}</td>
@@ -93,20 +116,37 @@ export default function OrderListClient({ initialOrders }: { initialOrders: any[
                         <option value="cancelled">Cancelled</option>
                       </select>
                     </td>
+                    <td style={{ padding: '0.85rem', textAlign: 'right' }}>
+                      <div className="flex items-center justify-end gap-1">
+                        <Link href={`/orders/${order.id}`} className="btn-ghost" style={{ textDecoration: 'none' }}>👁️</Link>
+                        <button onClick={() => handleDelete(order.id, order.orderNumber)} className="btn-icon-danger">🗑️</button>
+                      </div>
+                    </td>
                   </tr>
                 ))
               )}
             </tbody>
           </table>
         </div>
+        
+        {/* Pagination UI */}
+        {totalPages > 1 && (
+          <div className="flex justify-between items-center p-4 border-t" style={{ borderColor: 'rgba(var(--border), 0.4)' }}>
+            <span className="text-sm text-muted">Hal {currentPage} / {totalPages}</span>
+            <div className="flex gap-2">
+              <button className="btn btn-outline" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} style={{ padding: '0.4rem 0.8rem' }}>←</button>
+              <button className="btn btn-outline" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} style={{ padding: '0.4rem 0.8rem' }}>→</button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Mobile Card List View */}
       <div className="mobile-card-list desktop-hidden">
-        {filteredOrders.length === 0 ? (
+        {currentOrders.length === 0 ? (
           <div className="text-center text-muted p-4">Tidak ada pesanan ditemukan.</div>
         ) : (
-          filteredOrders.map(order => (
+          currentOrders.map(order => (
             <div key={order.id} className="mobile-card-item">
               <div className="flex justify-between items-start mb-2">
                 <div className="flex flex-col">

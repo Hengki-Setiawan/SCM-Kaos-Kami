@@ -17,6 +17,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
     }
 
+    // E6: Validate file type and size
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+    if (!allowedTypes.includes(file.type)) {
+      return NextResponse.json({ error: 'Tipe file tidak didukung. Gunakan JPG, PNG, atau WEBP.' }, { status: 400 });
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      return NextResponse.json({ error: 'Ukuran file maksimal 5MB.' }, { status: 400 });
+    }
+
     // Convert file to buffer, then to base64
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);

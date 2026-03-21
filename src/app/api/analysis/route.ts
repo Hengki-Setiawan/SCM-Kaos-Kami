@@ -8,7 +8,13 @@ const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 });
 
-export async function GET() {
+import { checkRateLimit } from '@/lib/rate-limiter';
+
+export async function GET(req: Request) {
+  const ip = req.headers.get('x-forwarded-for') || 'anonymous';
+  const { allowed } = checkRateLimit(`analysis:${ip}`, 5, 60000);
+  if (!allowed) return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+
   try {
     // 1. Kumpulkan data mentah dari database
     const allProducts = await db.select({

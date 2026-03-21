@@ -53,7 +53,7 @@ export default function NewOrderForm({ products, initialCustomerName = '', initi
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-4 mobile-col">
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold">Nama Pelanggan / Resi</label>
           <input 
@@ -83,7 +83,7 @@ export default function NewOrderForm({ products, initialCustomerName = '', initi
         <h3 className="border-b border-[rgba(var(--border),0.5)] pb-2">Daftar Produk</h3>
         
         {items.map((item, index) => (
-          <div key={index} className="flex gap-4 items-end">
+          <div key={index} className="flex gap-4 items-end mobile-col">
             <div className="flex flex-col gap-2" style={{ flex: 2 }}>
               <label className="text-sm font-semibold">Pilih Produk</label>
               <select 

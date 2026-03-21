@@ -120,3 +120,26 @@ export const telegramUsers = sqliteTable('telegram_users', {
   isActive: integer('is_active', { mode: 'boolean' }).default(true),
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull()
 });
+
+export const suppliers = sqliteTable('suppliers', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  contactPerson: text('contact_person'),
+  phone: text('phone'),
+  address: text('address'),
+  notes: text('notes'),
+  isActive: integer('is_active', { mode: 'boolean' }).default(true),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull()
+});
+
+export const expenses = sqliteTable('expenses', {
+  id: text('id').primaryKey(),
+  title: text('title').notNull(),
+  category: text('category').notNull(), // gaji, bahanbaku, sewa, iklan, operasional, dll
+  amount: real('amount').notNull(),
+  date: text('date').notNull(), // YYYY-MM-DD format usually
+  supplierId: text('supplier_id').references(() => suppliers.id),
+  notes: text('notes'),
+  receiptUrl: text('receipt_url'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull()
+});

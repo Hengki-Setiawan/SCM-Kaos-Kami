@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Package, ClipboardList, Bot, TrendingUp, Calculator, History, ScanLine, Settings, Shirt } from 'lucide-react';
+import { LayoutDashboard, Package, ClipboardList, Bot, TrendingUp, Calculator, History, ScanLine, Settings, Shirt, LogOut, Wallet, Download, Users } from 'lucide-react';
+import { logoutAction } from '@/app/actions/auth';
 
 const menuItems = [
   { name: 'Dashboard', icon: LayoutDashboard, path: '/' },
@@ -11,8 +12,11 @@ const menuItems = [
   { name: 'AI Assistant', icon: Bot, path: '/chat' },
   { name: 'Analisis Gudang', icon: TrendingUp, path: '/analysis' },
   { name: 'Kalkulator Harga', icon: Calculator, path: '/calculator' },
-  { name: 'Riwayat Stok', icon: History, path: '/history' },
+  { name: 'Supplier', icon: Users, path: '/admin/suppliers' },
+  { name: 'Keuangan', icon: Wallet, path: '/finance' },
+  { name: 'Jejak Audit', icon: History, path: '/activity' },
   { name: 'Scan Resi', icon: ScanLine, path: '/orders/scan' },
+  { name: 'Export Center', icon: Download, path: '/admin/export' },
   { name: 'Pengaturan', icon: Settings, path: '/settings' },
 ];
 
@@ -59,8 +63,20 @@ export default function Sidebar() {
         </ul>
       </nav>
       
-      <div style={{ padding: '1.25rem', borderTop: '1px solid rgba(var(--border), 0.5)', fontSize: '0.7rem', textAlign: 'center' }} className="text-muted">
-        © 2026 Kaos Kami SCM
+      {/* Sidebar Footer */}
+      <div style={{ marginTop: 'auto', borderTop: '1px solid rgba(var(--border), 0.5)' }}>
+        <button 
+          onClick={() => logoutAction()}
+          style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.8rem 1.5rem', border: 'none', background: 'transparent', cursor: 'pointer', color: 'rgb(var(--danger))', fontWeight: 600, transition: 'all 0.2s' }}
+          className="hover-bg"
+        >
+          <LogOut size={18} strokeWidth={2} />
+          <span>Keluar</span>
+        </button>
+        
+        <div style={{ padding: '1rem', background: 'rgba(var(--foreground-rgb), 0.02)', fontSize: '0.65rem', textAlign: 'center' }} className="text-muted">
+          © 2026 Kaos Kami SCM
+        </div>
       </div>
     </aside>
   );
