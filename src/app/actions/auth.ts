@@ -8,7 +8,10 @@ export async function loginAction(password: string) {
   // In production, use env var. Hardcoded fallback for easy local dev testing
   const adminPassword = process.env.ADMIN_PASSWORD;
   if (!adminPassword && process.env.NODE_ENV === 'production') {
-    throw new Error('CRITICAL: ADMIN_PASSWORD tidak terkonfigurasi di Vercel/Production Environment!');
+    return { success: false, error: 'Sistem belum dikonfigurasi: Variabel ADMIN_PASSWORD hilang di Vercel!' };
+  }
+  if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
+    return { success: false, error: 'Sistem belum dikonfigurasi: Variabel JWT_SECRET hilang di Vercel!' };
   }
   
   if (password !== (adminPassword || 'admin123')) {
