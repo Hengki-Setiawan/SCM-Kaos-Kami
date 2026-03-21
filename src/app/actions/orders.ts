@@ -6,6 +6,58 @@ import { eq, desc, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { v4 as uuidv4 } from 'uuid';
 
+export async function createOrder(data: { customerName: string; platform: string; items: any[]; totalPrice: number }) {
+  try {
+    const orderId = uuidv4();
+    const orderNumber = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+    await db.transaction(async (tx) => {
+      // 1. Create Order
+      await tx.insert(orders).values({
+        id: orderId,
+        orderNumber,
+        customerName: data.customerName,
+        platform: data.platform,
+        status: 'processing',
+        totalPrice: data.totalPrice,
+      });
+
+      // 2. Create Order Items & Deduct Stock
+      for (const item of data.items) {
+        await tx.insert(orderItems).values({
+          id: uuidv4(),
+          orderId,
+          productId: item.productId,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+        });
+
+        // Deduct Stock
+        await tx.update(products)
+          .set({ currentStock: sql`current_stock - ${item.quantity}` })
+          .where(eq(products.id, item.productId));
+
+        // Create Stock Movement Log
+        await tx.insert(stockMovements).values({
+          id: uuidv4(),
+          productId: item.productId,
+          type: 'OUT',
+          quantity: item.quantity,
+          reason: `Pesanan Baru #${orderNumber}`,
+          referenceId: orderNumber,
+        });
+      }
+    });
+
+    revalidatePath('/orders');
+    revalidatePath('/');
+    return { success: true, orderId };
+  } catch (error: any) {
+    console.error('CREATE_ORDER_ERROR', error);
+    return { success: false, error: error.message || 'Gagal membuat pesanan' };
+  }
+}
+
 export async function updateOrderStatus(orderId: string, status: string) {
   try {
     await db.update(orders).set({ status }).where(eq(orders.id, orderId));

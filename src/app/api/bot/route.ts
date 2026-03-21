@@ -639,12 +639,13 @@ bot.on('message:text', async (ctx) => {
 bot.callbackQuery('confirm_action', async (ctx) => {
   await ctx.answerCallbackQuery('⏳ Memproses...');
   const session = getSession(ctx.chat?.id || 0);
-  const action = session.pendingAction;
+  try {
+    const action = session.pendingAction;
 
-  if (!action) {
-    await ctx.editMessageText('⚠️ Tidak ada aksi yang menunggu konfirmasi.');
-    return;
-  }
+    if (!action) {
+      await ctx.editMessageText('⚠️ Tidak ada aksi yang menunggu konfirmasi.');
+      return;
+    }
 
     if (action.action === 'LOG_EXPENSE') {
       await db.insert(expenses).values({

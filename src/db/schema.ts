@@ -69,6 +69,23 @@ export const orderItems = sqliteTable('order_items', {
   unitPrice: real('unit_price').notNull()
 });
 
+import { relations } from 'drizzle-orm';
+
+export const ordersRelations = relations(orders, ({ many }) => ({
+  items: many(orderItems),
+}));
+
+export const orderItemsRelations = relations(orderItems, ({ one }) => ({
+  order: one(orders, {
+    fields: [orderItems.orderId],
+    references: [orders.id],
+  }),
+  product: one(products, {
+    fields: [orderItems.productId],
+    references: [products.id],
+  }),
+}));
+
 export const priceReferences = sqliteTable('price_references', {
   id: text('id').primaryKey(),
   productId: text('product_id').references(() => products.id),
