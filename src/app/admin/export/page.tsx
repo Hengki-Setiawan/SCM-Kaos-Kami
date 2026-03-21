@@ -1,3 +1,5 @@
+'use client';
+
 import { Download, FileText, Database, Package, ShoppingCart, DollarSign } from 'lucide-react';
 
 export default function ExportPage() {
