@@ -954,7 +954,19 @@ async function parseAIIntent(text: string, contextMessages: {role: string, conte
   }
 }
 
-
+// ==================== /help COMMAND ====================
+bot.command('help', async (ctx) => {
+  await ctx.reply(
+    `📖 *Daftar Perintah Tersedia:*\n\n` +
+    `/start — Mulai dan tampilkan menu\n` +
+    `/chart — Lihat grafik stok & laporan keuangan\n` +
+    `/export — Download file CSV data stok\n` +
+    `/help — Tampilkan daftar perintah ini\n\n` +
+    `💡 *Tips:* Anda juga bisa mengirim *voice note*, *foto produk/nota*, atau mengetik perintah bebas seperti _"tambah stok kaos hitam 50"_.`,
+    { parse_mode: 'Markdown', reply_markup: mainMenu }
+  );
+});
 
 export const POST = webhookCallback(bot, 'std/http');
 export const GET = async () => new Response('Telegram webhook is running', { status: 200 });
+

@@ -1,32 +1,19 @@
 import { NextResponse } from 'next/server';
-import { logger } from '@/lib/logger';
 
-export async function GET(req: Request) {
-  // Only accessible with auth header in production
-  const authHeader = req.headers.get('authorization');
-  const expectedToken = process.env.JWT_SECRET || 'dev-secret';
-  
-  if (authHeader !== `Bearer ${expectedToken}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+// Endpoint sederhana untuk menerima log error dari frontend (global-error.tsx)
+// Di tahap produksi sesungguhnya, ini akan ditembak ke Sentry / Datadog / DB Tabel
+export async function POST(req: Request) {
+  try {
+    const errorData = await req.json();
+    
+    // Log to server console (which Vercel captures in their Logs tab)
+    console.error('[FRONTEND_CRITICAL_ERROR]', JSON.stringify(errorData, null, 2));
+
+    // Anda bisa menambahkan logika insert ke database tabel `error_logs` di sini
+    // await db.insert(errorLogs).values({ ... });
+
+    return NextResponse.json({ success: true, message: 'Log recorded' });
+  } catch (e) {
+    return NextResponse.json({ success: false }, { status: 500 });
   }
-
-  const url = new URL(req.url);
-  const level = url.searchParams.get('level'); // 'error', 'warn', 'info', or null for all
-  const limit = parseInt(url.searchParams.get('limit') || '50');
-
-  let logs;
-  if (level === 'error') {
-    logs = logger.getRecentErrors(limit);
-  } else {
-    logs = logger.getRecentLogs(limit);
-    if (level) {
-      logs = logs.filter(l => l.level === level);
-    }
-  }
-
-  return NextResponse.json({ 
-    success: true, 
-    count: logs.length,
-    logs 
-  });
 }

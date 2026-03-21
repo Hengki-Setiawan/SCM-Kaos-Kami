@@ -1,86 +1,99 @@
 import { describe, it, expect } from 'vitest';
-import { orderSchema, productSchema } from '../lib/validations';
+import { productSchema, orderSchema } from '../lib/validations';
 
-describe('Order Schema Validation', () => {
-  it('should reject empty customerName', () => {
-    const result = orderSchema.safeParse({
-      customerName: '',
-      platform: 'shopee',
-      items: [{ productId: '123', quantity: 1, unitPrice: 50000 }],
-      totalPrice: 50000,
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it('should accept valid order data', () => {
-    const result = orderSchema.safeParse({
-      customerName: 'Budi',
-      platform: 'shopee',
-      items: [{ productId: '123', quantity: 2, unitPrice: 50000 }],
-      totalPrice: 100000,
+describe('productSchema', () => {
+  it('validates a correct product', () => {
+    const result = productSchema.safeParse({
+      name: 'Kaos Hitam Polos',
+      sku: 'KHP-L-001',
+      categoryId: 'cat-123',
+      unitType: 'pcs',
+      unitValue: 1,
+      unitPrice: 85000,
+      buyPrice: 45000,
     });
     expect(result.success).toBe(true);
   });
 
-  it('should reject negative totalPrice', () => {
-    const result = orderSchema.safeParse({
-      customerName: 'Budi',
-      platform: 'shopee',
-      items: [{ productId: '123', quantity: 1, unitPrice: 50000 }],
-      totalPrice: -100,
+  it('rejects empty name', () => {
+    const result = productSchema.safeParse({
+      name: '',
+      sku: 'TEST-001',
+      categoryId: 'cat-1',
+      unitType: 'pcs',
+      unitValue: 1,
     });
     expect(result.success).toBe(false);
   });
 
-  it('should reject empty items array', () => {
+  it('rejects empty SKU', () => {
+    const result = productSchema.safeParse({
+      name: 'Test Product',
+      sku: '',
+      categoryId: 'cat-1',
+      unitType: 'pcs',
+      unitValue: 1,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects negative prices', () => {
+    const result = productSchema.safeParse({
+      name: 'Test',
+      sku: 'T-001',
+      categoryId: 'cat-1',
+      unitType: 'pcs',
+      unitValue: 1,
+      unitPrice: -100,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('accepts partial schema for updates', () => {
+    const result = productSchema.partial().safeParse({
+      name: 'Updated Name',
+      unitPrice: 90000,
+    });
+    expect(result.success).toBe(true);
+  });
+});
+
+describe('orderSchema', () => {
+  it('validates correct order', () => {
+    const result = orderSchema.safeParse({
+      customerName: 'Budi',
+      platform: 'shopee',
+      items: [
+        { productId: 'prod-1', quantity: 2, unitPrice: 85000 }
+      ],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects order without customer name', () => {
+    const result = orderSchema.safeParse({
+      customerName: '',
+      platform: 'shopee',
+      items: [{ productId: 'p', quantity: 1, unitPrice: 1 }],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects order without items', () => {
     const result = orderSchema.safeParse({
       customerName: 'Budi',
       platform: 'shopee',
       items: [],
-      totalPrice: 0,
     });
     expect(result.success).toBe(false);
   });
 
-  it('should reject zero quantity', () => {
+  it('rejects item with zero quantity', () => {
     const result = orderSchema.safeParse({
-      customerName: 'Budi',
-      platform: 'shopee',
-      items: [{ productId: '123', quantity: 0, unitPrice: 50000 }],
-      totalPrice: 0,
+      customerName: 'Test',
+      platform: 'tokopedia',
+      items: [{ productId: 'p', quantity: 0, unitPrice: 50000 }],
     });
     expect(result.success).toBe(false);
-  });
-});
-
-describe('Product Schema Validation', () => {
-  it('should reject empty product name', () => {
-    const result = productSchema.safeParse({
-      name: '',
-      sku: 'KS-001',
-      categoryId: '123',
-      unitPrice: 50000,
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it('should reject negative price', () => {
-    const result = productSchema.safeParse({
-      name: 'Kaos Hitam',
-      sku: 'KS-001',
-      categoryId: '123',
-      unitPrice: -500,
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it('should accept valid product data', () => {
-    const result = productSchema.safeParse({
-      name: 'Kaos Hitam L',
-      sku: 'KS-HTM-L',
-      categoryId: '123',
-      unitPrice: 75000,
-    });
-    expect(result.success).toBe(true);
   });
 });
