@@ -689,6 +689,12 @@ bot.on('message:text', async (ctx) => {
   }
 
   try {
+    // Anti-hallucination: Clear context if user starts a new explicit command
+    const lowerText = text.toLowerCase().trim();
+    if (lowerText.startsWith('tambah') || lowerText.startsWith('hapus') || lowerText.startsWith('buat') || lowerText.startsWith('buatkan')) {
+        session.contextMessages = [];
+    }
+
     session.contextMessages.push({ role: 'user', content: text });
     if (session.contextMessages.length > 5) session.contextMessages.shift();
 
@@ -828,7 +834,7 @@ bot.on('message:text', async (ctx) => {
         ...session.contextMessages
       ],
       model: 'llama-3.1-8b-instant',
-      temperature: 0.5,
+      temperature: 0.1,
       max_tokens: 300,
     });
 
