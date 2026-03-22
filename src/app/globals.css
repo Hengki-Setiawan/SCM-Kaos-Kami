@@ -185,6 +185,9 @@ p { margin-bottom: 0.75rem; line-height: 1.6; }
   .mobile-hidden { display: none !important; }
   .mobile-col { flex-direction: column !important; align-items: stretch !important; }
   .mobile-gap-2 { gap: 0.5rem !important; }
+  .mobile-gap-3 { gap: 0.75rem !important; }
+  .mobile-justify-start { justify-content: flex-start !important; }
+  .mobile-justify-center { justify-content: center !important; }
   
   .mobile-scroll-x {
     overflow-x: auto;
@@ -193,6 +196,21 @@ p { margin-bottom: 0.75rem; line-height: 1.6; }
     -webkit-overflow-scrolling: touch;
     padding-bottom: 0.5rem;
   }
+  .mobile-scroll-x > * {
+    flex-shrink: 0 !important;
+  }
+}
+
+.no-shrink {
+  flex-shrink: 0 !important;
+}
+
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 /* Grid — A1: better spacing */
@@ -330,6 +348,18 @@ p { margin-bottom: 0.75rem; line-height: 1.6; }
 .badge-primary { background: rgba(var(--primary), 0.1); color: rgb(var(--primary)); }
 .badge-info { background: rgba(var(--info), 0.1); color: rgb(var(--info)); }
 
+.group-badge {
+  background: rgba(var(--primary), 0.08);
+  color: rgb(var(--primary));
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid rgba(var(--primary), 0.15);
+  margin-left: 0.5rem;
+  white-space: nowrap;
+}
+
 /* Layout — A1+A2: fixed sidebar offset + max-width */
 .app-container {
   display: flex;
@@ -424,11 +454,11 @@ p { margin-bottom: 0.75rem; line-height: 1.6; }
   }
   
   .topbar {
-    padding: 0 1rem;
+    padding: 0 0.75rem;
   }
   
   .page-container {
-    padding: 1rem;
+    padding: 0.75rem;
     width: 100%;
   }
   

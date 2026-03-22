@@ -38,8 +38,8 @@ export default function DashboardClient({ initialData }: { initialData: any }) {
           </div>
           <p className="text-muted">Ringkasan stok dan performa finansial hari ini.</p>
         </div>
-        <div className="flex gap-2 mobile-col">
-          <Link href="/orders/new" className="btn btn-primary touch-target"><Plus size={16} /> Pesanan Baru</Link>
+        <div className="flex gap-2 overflow-x-auto pb-2 mobile-scroll-x hide-scrollbar" style={{ flex: 1 }}>
+       <Link href="/orders/new" className="btn btn-primary touch-target"><Plus size={16} /> Pesanan Baru</Link>
           <div className="flex gap-2">
             <Link href="/orders/scan" className="btn btn-outline touch-target" style={{ flex: 1 }}><ScanLine size={16} /> Scan Resi</Link>
             <Link href="/chat" className="btn btn-outline touch-target" style={{ flex: 1 }}><Sparkles size={16} /> Tanya AI</Link>
@@ -110,8 +110,9 @@ export default function DashboardClient({ initialData }: { initialData: any }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-6 mt-6">
-        <div className="glass-card" style={{ gridColumn: 'span 2' }}>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+        <div className="lg:col-span-2">
+          <div className="glass-card h-full">
           <div className="flex justify-between items-center mb-6">
             <h3 style={{ margin: 0 }} className="flex items-center gap-2"><BarChart3 size={18} className="text-[rgb(var(--primary))]" /> Statistik Penjualan vs Biaya</h3>
             <div className="flex gap-4">
@@ -136,9 +137,10 @@ export default function DashboardClient({ initialData }: { initialData: any }) {
               </div>
             ))}
           </div>
+          </div>
         </div>
 
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-6 lg:col-span-1">
           <div className="glass-card">
             <h3 className="mb-3 flex items-center gap-2"><Sparkles size={18} /> Aksi Cepat</h3>
             <div className="flex flex-col gap-2">
@@ -156,8 +158,10 @@ export default function DashboardClient({ initialData }: { initialData: any }) {
              <p className="text-[10px] text-muted mt-2 italic">Nilai estimasi total stok yang ada di gudang saat ini.</p>
           </div>
         </div>
+      </div>
 
-        <div className="glass-card" style={{ gridColumn: 'span 3' }}>
+      <div className="grid grid-cols-1 mt-6">
+        <div className="glass-card">
           <div className="flex justify-between items-center mb-4">
             <h3 className="flex items-center gap-2" style={{ margin: 0 }}><History size={18} /> Aktivitas Stok Terakhir</h3>
             <Link href="/activity" style={{ color: 'rgb(var(--primary))', fontSize: '0.85rem' }}>Lihat Semua →</Link>

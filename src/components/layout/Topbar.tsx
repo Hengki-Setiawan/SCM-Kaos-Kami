@@ -44,7 +44,7 @@ export default function Topbar() {
 
   return (
     <header className="topbar glass-panel justify-between" role="banner" style={{ borderRadius: 0, borderTop: 0, borderRight: 0, borderLeft: 0 }}>
-      <div className="flex items-center gap-3 w-full" style={{ flex: 1, maxWidth: '400px', minWidth: 0 }}>
+      <div className="flex items-center gap-3 w-full" style={{ flex: 1, maxWidth: '400px', minWidth: '40px' }}>
         <button 
           onClick={openSearch}
           className="input-field flex items-center gap-2 touch-target w-full" 
@@ -52,12 +52,12 @@ export default function Topbar() {
           style={{ minWidth: 0, cursor: 'pointer', padding: '0.5rem 0.8rem', textDecoration: 'none', transition: 'all 0.2s', textAlign: 'left', border: '1px solid rgba(var(--border), 0.7)', background: 'rgba(var(--surface), 0.5)' }}
         >
           <Search size={16} className="text-muted flex-shrink-0" />
-          <span className="text-muted truncate min-w-0 text-left text-sm" style={{ flex: 1 }}>Cari SKU/Barang...</span>
+          <span className="text-muted truncate min-w-0 text-left text-sm mobile-hidden" style={{ flex: 1 }}>Cari SKU/Barang...</span>
           <kbd className="mobile-hidden flex-shrink-0" style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', background: 'rgba(var(--foreground-rgb), 0.08)', borderRadius: '4px' }}>Ctrl+K</kbd>
         </button>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 no-shrink">
         {/* Dark Mode Toggle — D1 */}
         <button onClick={toggleDark} className="btn-ghost" aria-label={isDark ? 'Mode terang' : 'Mode gelap'} title={isDark ? 'Mode Terang' : 'Mode Gelap'}>
           {isDark ? <Sun size={18} /> : <Moon size={18} />}

@@ -62,18 +62,18 @@ export default function OrderDetailClient({ order: initialOrder, items }: { orde
   return (
     <div className="flex flex-col gap-6" style={{ maxWidth: 800, margin: '0 auto', width: '100%' }}>
       
-      <div className="flex justify-between items-center mobile-col mobile-gap-2 no-print">
+      <div className="flex justify-between items-start mobile-col mobile-gap-3 no-print">
         <div>
-          <h1>Detail Pesanan</h1>
+          <h1 className="mb-1">Detail Pesanan</h1>
           <p className="text-muted text-sm">#{order.orderNumber}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2 justify-end mobile-justify-start">
           <Link href="/orders" className="btn btn-outline" style={{ textDecoration: 'none' }}>← Kembali</Link>
-          <button onClick={handlePrint} className="btn btn-primary">🖨️ Cetak Label</button>
+          <button onClick={handlePrint} className="btn btn-primary">🖨️ Label</button>
           {order.status !== 'cancelled' && (
-            <button onClick={handleReturnAction} className="btn btn-outline" style={{ borderColor: 'rgb(var(--danger))', color: 'rgb(var(--danger))' }}>🔄 Retur/Batal</button>
+            <button onClick={handleReturnAction} className="btn btn-outline" style={{ borderColor: 'rgb(var(--danger))', color: 'rgb(var(--danger))' }}>🔄 Retur</button>
           )}
-          <button onClick={handleDelete} className="btn btn-danger">🗑️ Hapus</button>
+          <button onClick={handleDelete} className="btn btn-danger">🗑️</button>
         </div>
       </div>
 
