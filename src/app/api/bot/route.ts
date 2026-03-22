@@ -768,7 +768,7 @@ bot.on('message:text', async (ctx) => {
       return;
     }
 
-    if (actionIntent && actionIntent.action !== 'CHAT') {
+    if (actionIntent && actionIntent.action !== 'CHAT' && actionIntent.action !== 'CREATE_PRODUCT') {
       // Tampilkan KONFIRMASI, jangan langsung eksekusi
       const allProducts = await db.select().from(products);
       const searchSku = (actionIntent.sku || '').toLowerCase();
