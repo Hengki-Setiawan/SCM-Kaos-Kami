@@ -27,15 +27,15 @@ function getGreeting(): string {
 
 // Follow-up keyboard for common actions
 const followUpStock = new InlineKeyboard()
-  .text('📦 Semua Stok', 'cat_all').text('⚠️ Low Stock', 'btn_lowstock').row()
+  .text('🔙 Kembali ke Kategori', 'show_categories_menu').text('⚠️ Low Stock', 'btn_lowstock').row()
   .text('📄 Buat PO', 'btn_po_link').text('🏠 Menu', 'btn_mainmenu');
 
 const followUpOrder = new InlineKeyboard()
-  .text('📋 Pesanan', 'btn_orders').text('📦 Cek Stok', 'btn_stock').row()
+  .text('📋 Pesanan', 'btn_orders').text('📦 Stok Kategori', 'show_categories_menu').row()
   .text('↩️ Undo', 'btn_undo').text('🏠 Menu', 'btn_mainmenu');
 
 const followUpGeneral = new InlineKeyboard()
-  .text('📦 Stok', 'btn_stock').text('📋 Pesanan', 'btn_orders').row()
+  .text('📦 Stok', 'show_categories_menu').text('📋 Pesanan', 'btn_orders').row()
   .text('📈 Laporan', 'btn_report').text('🏠 Menu', 'btn_mainmenu');
 
 
@@ -137,7 +137,7 @@ bot.command('export', async (ctx) => {
 });
 
 // ==================== 📦 CEK STOK ====================
-bot.hears('📦 Cek Stok', async (ctx) => {
+async function renderCategoryMenu(ctx: any, isEdit = false) {
   try {
     const cats = await db.select().from(categories);
     const keyboard = new InlineKeyboard();
@@ -148,16 +148,27 @@ bot.hears('📦 Cek Stok', async (ctx) => {
     });
     keyboard.row().text('📊 Ringkasan Semua', 'cat_all');
 
-    await ctx.reply('📦 *Pilih kategori stok:*', { 
-      parse_mode: 'Markdown', 
-      reply_markup: keyboard 
-    });
+    if (isEdit && ctx.callbackQuery) {
+      await ctx.editMessageText('📦 *Pilih kategori stok:*', { parse_mode: 'Markdown', reply_markup: keyboard });
+    } else {
+      await ctx.reply('📦 *Pilih kategori stok:*', { parse_mode: 'Markdown', reply_markup: keyboard });
+    }
   } catch (e) {
-    await ctx.reply('❌ *Server sedang sibuk.* Coba lagi dalam beberapa detik.', {
-      parse_mode: 'Markdown',
-      reply_markup: new InlineKeyboard().text('🔄 Coba Lagi', 'btn_stock').text('🏠 Menu', 'btn_mainmenu')
-    });
+    if (isEdit && ctx.callbackQuery) {
+      await ctx.editMessageText('❌ *Server sibuk.* Coba lagi nanti.', { parse_mode: 'Markdown' });
+    } else {
+      await ctx.reply('❌ *Server sibuk.* Coba lagi nanti.', { parse_mode: 'Markdown' });
+    }
   }
+}
+
+bot.hears(['📦 Cek Stok', 'Cek Stok'], async (ctx) => {
+  await renderCategoryMenu(ctx, false);
+});
+
+bot.callbackQuery('show_categories_menu', async (ctx) => {
+  await ctx.answerCallbackQuery();
+  await renderCategoryMenu(ctx, true);
 });
 
 // Callback: Category selected
@@ -174,8 +185,8 @@ bot.callbackQuery(/^cat_(.+)$/, async (ctx) => {
         name: products.name,
         stock: products.currentStock,
         min: products.minStock
-      }).from(products).limit(15);
-      title = '📊 Ringkasan Semua Stok';
+      }).from(products).orderBy(desc(products.currentStock)).limit(15);
+      title = '📊 Ringkasan 15 Stok Terbanyak';
     } else {
       items = await db.select({
         name: products.name,
