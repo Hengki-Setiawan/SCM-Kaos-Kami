@@ -158,31 +158,39 @@ export default function DashboardClient({ initialData }: { initialData: any }) {
             <span className="text-muted text-xs block mb-3 uppercase tracking-widest font-semibold flex items-center gap-1">
               <Sparkles size={18} /> Aksi Cepat
             </span>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
               <Link href="/finance" className="btn btn-primary w-full text-sm"><Wallet size={14} /> Catat Pengeluaran</Link>
               <Link href="/stock" className="btn btn-outline w-full text-sm"><Package size={14} /> Kelola Stok</Link>
               <Link href="/orders" className="btn btn-outline w-full text-sm"><FileText size={14} /> Proses Pesanan</Link>
-              {showInstallButton && (
-                <button
-                  id="install-button"
-                  className="btn btn-outline w-full text-sm"
-                  onClick={() => {
-                    const promptEvent = (window as any).deferredPrompt;
-                    if (promptEvent) {
-                      promptEvent.prompt();
-                      promptEvent.userChoice.then(() => {
-                        (window as any).deferredPrompt = null;
-                        setShowInstallButton(false); // Hide button after user choice
-                      });
-                    } else {
-                      alert('Aplikasi sudah terpasang atau browser Anda tidak mendukung.');
-                    }
-                  }}
-                >
-                  <Download size={14} /> Install Aplikasi
-                </button>
-              )}
             </div>
+          </div>
+          
+          <div className="glass-card flex flex-col gap-3" style={{ background: 'linear-gradient(135deg, rgba(var(--primary), 0.1), rgba(var(--accent), 0.05))', border: '1px solid rgba(var(--primary), 0.3)' }}>
+            <div className="flex items-center gap-2">
+              <div style={{ padding: '0.4rem', background: 'rgba(var(--primary), 0.1)', borderRadius: '8px', color: 'rgb(var(--primary))' }}>
+                <Download size={18} />
+              </div>
+              <div>
+                <span className="font-bold text-sm block" style={{ color: 'rgb(var(--foreground-rgb))' }}>Aplikasi SCM</span>
+                <span className="text-[10px] text-muted block">Akses cepat tanpa browser</span>
+              </div>
+            </div>
+            <button
+              className="btn btn-primary w-full text-sm mt-1"
+              onClick={() => {
+                const promptEvent = (window as any).deferredPrompt;
+                if (promptEvent) {
+                  promptEvent.prompt();
+                  promptEvent.userChoice.then(() => {
+                    (window as any).deferredPrompt = null;
+                  });
+                } else {
+                  alert('Aplikasi sudah terpasang atau browser Anda tidak mendukung instalasi PWA.');
+                }
+              }}
+            >
+              Pasang Sekarang
+            </button>
           </div>
           
           <div className="glass-card flex flex-col gap-2" style={{ background: 'rgba(var(--primary), 0.05)' }}>
@@ -208,13 +216,13 @@ export default function DashboardClient({ initialData }: { initialData: any }) {
                   <div style={{ width: 36, height: 36, borderRadius: '50%', background: m.type === 'IN' ? 'rgba(var(--success),0.1)' : 'rgba(var(--danger),0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px' }}>
                     {m.type === 'IN' ? '➕' : '➖'}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <span className="text-sm font-semibold truncate block">{m.productName || 'Produk'}</span>
-                    <span className="text-[10px] text-muted block truncate font-medium">{m.reason}</span>
+                  <div className="flex-1 min-w-0" style={{ display: 'flex', flexDirection: 'column' }}>
+                    <div className="text-sm font-semibold truncate" style={{ color: 'rgb(var(--foreground-rgb))' }}>{m.productName || 'Produk'}</div>
+                    <div className="text-[10.5px] text-muted truncate">{m.reason}</div>
                   </div>
-                  <span className={`text-sm font-bold no-shrink ${m.type === 'IN' ? 'text-[rgb(var(--success))]' : 'text-[rgb(var(--danger))]'}`}>
+                  <div className={`text-sm font-bold no-shrink ${m.type === 'IN' ? 'text-[rgb(var(--success))]' : 'text-[rgb(var(--danger))]'}`}>
                     {m.type === 'IN' ? '+' : '-'}{m.quantity}
-                  </span>
+                  </div>
                 </div>
               ))}
             </div>
