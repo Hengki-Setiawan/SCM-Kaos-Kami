@@ -724,7 +724,7 @@ bot.on('message:text', async (ctx) => {
             return;
         }
         
-        const keywords = keyword.split(/\\s+/);
+        const keywords = keyword.split(/\s+/).filter((k: string) => k.length > 0);
         const matches = await db.select().from(products);
         
         const matchedProducts = matches.filter(p => {

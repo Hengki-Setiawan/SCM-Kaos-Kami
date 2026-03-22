@@ -68,7 +68,7 @@ export async function executeNonProductAction(action: any) {
       const keyword = (action.keyword || '').toLowerCase().trim();
       if (!keyword) return { message: `❌ Keyword kosong.` };
       
-      const keywords = keyword.split(/\\s+/);
+      const keywords = keyword.split(/\s+/).filter((k: string) => k.length > 0);
       const allProds = await db.select().from(products);
       const matched = allProds.filter(p => {
           const nameLower = p.name.toLowerCase();
