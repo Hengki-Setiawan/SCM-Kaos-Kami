@@ -171,7 +171,7 @@ export default function DashboardClient({ initialData }: { initialData: any }) {
                 <Download size={18} />
               </div>
               <div>
-                <span className="font-bold text-sm block" style={{ color: 'rgb(var(--foreground-rgb))' }}>Aplikasi SCM</span>
+                <span className="font-bold text-sm block" style={{ color: 'rgb(var(--foreground-rgb))' }}>Stok KaosKami</span>
                 <span className="text-[10px] text-muted block">Akses cepat tanpa browser</span>
               </div>
             </div>
@@ -185,7 +185,7 @@ export default function DashboardClient({ initialData }: { initialData: any }) {
                     (window as any).deferredPrompt = null;
                   });
                 } else {
-                  alert('Aplikasi SCM mungkin sudah terpasang atau browser Anda memblokir pop-up otomatis.\n\nUntuk menginstal ulang secara manual:\n1. Ketuk ikon Menu (Tiga Titik) di pojok kanan atas browser (Chrome/Edge/Safari).\n2. Pilih "Instal Aplikasi" atau "Tambahkan ke Layar Utama" (Add to Home Screen).');
+                  alert('Stok KaosKami mungkin sudah terpasang atau browser Anda memblokir pop-up otomatis.\n\nUntuk menginstal ulang secara manual:\n1. Ketuk ikon Menu (Tiga Titik) di pojok kanan atas browser (Chrome/Edge/Safari).\n2. Pilih "Instal Aplikasi" atau "Tambahkan ke Layar Utama" (Add to Home Screen).');
                 }
               }}
             >

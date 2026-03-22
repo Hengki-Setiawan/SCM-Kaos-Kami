@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   authors: [{ name: 'Kaos Kami SCM Team' }],
   manifest: '/manifest.json',
   appleWebApp: {
-    title: 'Kaos Kami',
+    title: 'Stok KaosKami',
     statusBarStyle: 'black-translucent',
     capable: true,
   },
