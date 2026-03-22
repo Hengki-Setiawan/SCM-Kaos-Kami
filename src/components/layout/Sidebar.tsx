@@ -27,14 +27,14 @@ export default function Sidebar() {
     <aside className="sidebar glass-panel" style={{ borderRadius: 0, borderTop: 0, borderBottom: 0, borderLeft: 0 }}>
       <div className="flex items-center gap-3" style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid rgba(var(--border), 0.5)' }}>
         <img 
-          src="/logo-dark.png" 
+          src="/logo-dark.svg" 
           alt="Kaos Kami Logo" 
           style={{ width: '40px', height: '40px', objectFit: 'contain' }}
           className="dark:hidden"
           onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling!.removeAttribute('style'); }}
         />
         <img 
-          src="/logo-light.png" 
+          src="/logo-light.svg" 
           alt="Kaos Kami Logo" 
           style={{ width: '40px', height: '40px', objectFit: 'contain' }}
           className="hidden dark:block"
