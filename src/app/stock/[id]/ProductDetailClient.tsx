@@ -76,7 +76,7 @@ export default function ProductDetailClient({ initialProduct, categories, histor
             {product.imageUrl ? (
               <Image src={product.imageUrl} alt={product.name} fill className="object-cover" sizes="(max-width: 768px) 100vw, 300px" />
             ) : (
-              <span className="text-4xl">📦</span>
+              <span className="text-6xl">📦</span>
             )}
             
             {isEditing && (
