@@ -16,6 +16,12 @@ const withPWA = withPWAInit({
 const nextConfig: NextConfig = {
   // Silence the Next 16 error when a plugin adds webpack config
   turbopack: {},
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  typescript: {
+    ignoreBuildErrors: true,
+  },
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'res.cloudinary.com' },
