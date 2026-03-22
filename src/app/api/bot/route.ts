@@ -719,7 +719,7 @@ bot.on('message:text', async (ctx) => {
     }
 
     // === NON-PRODUCT CRUD ACTIONS (Categories, Suppliers, Orders, Bulk Product Delete) ===
-    const NON_PRODUCT_ACTIONS = ['CREATE_CATEGORY', 'DELETE_CATEGORY', 'CREATE_SUPPLIER', 'DELETE_SUPPLIER', 'CREATE_ORDER', 'DELETE_ORDER', 'UPDATE_ORDER_STATUS', 'DELETE_PRODUCTS_BULK', 'CREATE_PRODUCT'];
+    const NON_PRODUCT_ACTIONS = ['CREATE_CATEGORY', 'DELETE_CATEGORY', 'CREATE_SUPPLIER', 'DELETE_SUPPLIER', 'CREATE_ORDER', 'DELETE_ORDER', 'UPDATE_ORDER_STATUS', 'DELETE_PRODUCTS_BULK', 'CREATE_PRODUCT', 'UPDATE_PRODUCT_NAME'];
     if (actionIntent && NON_PRODUCT_ACTIONS.includes(actionIntent.action)) {
       let preview = '';
       
@@ -748,6 +748,8 @@ bot.on('message:text', async (ctx) => {
         preview = `🗑️ *Hapus Massal Produk*\n\n🔥 Aksi: Menghapus *${matchedProducts.length}* produk yang mengandung kata *"${keyword}"* dari database beserta seluruh riwayat stoknya.\n\n⚠️ PERINGATAN BEMBAHAYA: Tindakan ini permanen!`;
       } else if (actionIntent.action === 'CREATE_PRODUCT') {
         preview = `📦 *Tambah Produk Baru*\n\nNama: *${actionIntent.name}*\n📁 Kategori: *${actionIntent.category}*\n🔢 Stok Awal: *${actionIntent.qty || 0}*\n\n_Pastikan kategori sudah terdaftar._`;
+      } else if (actionIntent.action === 'UPDATE_PRODUCT_NAME') {
+        preview = `✏️ *Ubah Nama Produk*\n\n📦 SKU: *${actionIntent.sku}*\n🆕 Nama Baru: *${actionIntent.newName}*`;
       } else if (actionIntent.action === 'CREATE_CATEGORY') {
         preview = `📁 *Tambah Kategori Baru*\n\n${actionIntent.icon || '📦'} Nama: *${actionIntent.name}*`;
       } else if (actionIntent.action === 'DELETE_CATEGORY') {
@@ -874,7 +876,7 @@ bot.callbackQuery('confirm_action', async (ctx) => {
     }
 
     // === NON-PRODUCT CRUD ACTIONS ===
-    const NON_PRODUCT_ACTIONS = ['CREATE_CATEGORY', 'DELETE_CATEGORY', 'CREATE_SUPPLIER', 'DELETE_SUPPLIER', 'CREATE_ORDER', 'DELETE_ORDER', 'UPDATE_ORDER_STATUS', 'DELETE_PRODUCTS_BULK', 'CREATE_PRODUCT'];
+    const NON_PRODUCT_ACTIONS = ['CREATE_CATEGORY', 'DELETE_CATEGORY', 'CREATE_SUPPLIER', 'DELETE_SUPPLIER', 'CREATE_ORDER', 'DELETE_ORDER', 'UPDATE_ORDER_STATUS', 'DELETE_PRODUCTS_BULK', 'CREATE_PRODUCT', 'UPDATE_PRODUCT_NAME'];
     if (NON_PRODUCT_ACTIONS.includes(action.action)) {
       const { executeNonProductAction } = await import('@/lib/ai-actions');
       const result = await executeNonProductAction(action);
@@ -977,6 +979,7 @@ async function parseAIIntent(text: string, contextMessages: {role: string, conte
     const systemContent = `ASISTEN GUDANG STRUKTUR: KELUARKAN HANYA JSON.
 DAFTAR ACTION:
 - "CREATE_PRODUCT": Untuk "tambah barang baru", "tambah jenis", "tambah varian". Wajib kategori.
+- "UPDATE_PRODUCT_NAME": Ubah atau ganti nama barang (wajib "sku" lama dari katalog, "newName").
 - "ADD_STOCK"/"DEDUCT_STOCK": Update stok produk yang sudah ada di katalog.
 - "DELETE_PRODUCTS_BULK": Hapus banyak barang (butuh keyword).
 - "CHAT": Sapaan atau tanya stok.
@@ -984,6 +987,7 @@ DAFTAR ACTION:
 CONTOH:
 User: "tambah dtf skizo putih" -> {"action":"CREATE_PRODUCT","name":"DTF Skizo Putih","category":"dtf","qty":0}
 User: "tambah stok kaos hitam 10" -> {"action":"ADD_STOCK","sku":"KAOS-HITAM","qty":10}
+User: "ubah nama dtf skizo jadi dtf skizo hitam" -> {"action":"UPDATE_PRODUCT_NAME","sku":"SKIZO", "newName":"DTF Skizo Hitam"}
 
 KATALOG:
 ${catalogStr}

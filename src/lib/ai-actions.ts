@@ -56,6 +56,22 @@ export async function executeNonProductAction(action: any) {
       return { message: `✅ *Produk Berhasil Ditambahkan!*\n\n📦 *${name}*\nSKU: \`${sku}\`\n📁 Kategori: *${cat.name}*\n🔢 Stok Awal: *${action.qty || 0}*` };
     }
 
+    if (action.action === 'UPDATE_PRODUCT_NAME') {
+      const targetSku = (action.sku || '').toLowerCase();
+      if (!targetSku) return { message: `❌ Gagal menemukan referensi SKU barang yang dimaksud.` };
+      if (!action.newName) return { message: `❌ Nama produk baru harus jelas disertakan.` };
+
+      const allProds = await db.select().from(products);
+      const prod = allProds.find(p => p.sku.toLowerCase().includes(targetSku) || p.name.toLowerCase().includes(targetSku));
+
+      if (!prod) return { message: `❌ Tidak ditemukan produk yang cocok dengan pencarian sku "${action.sku}".` };
+
+      // Update name
+      await db.update(products).set({ name: action.newName, updatedAt: new Date().toISOString() }).where(eq(products.id, prod.id));
+
+      return { message: `📝 *Nama Produk Diperbarui*\n\nDari: *${prod.name}*\nMenjadi: *${action.newName}*` };
+    }
+
     if (action.action === 'DELETE_CATEGORY') {
       const allCats = await db.select().from(categories);
       const cat = allCats.find(c =>
