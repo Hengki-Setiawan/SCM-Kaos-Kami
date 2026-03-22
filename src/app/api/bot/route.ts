@@ -836,7 +836,7 @@ bot.on('message:text', async (ctx) => {
 
   } catch (error: any) {
     console.error('Bot Error:', error);
-    await ctx.reply(`❌ Terjadi kesalahan. Coba lagi atau gunakan tombol menu.\n\nDebug Info: ${error?.message || error}`, { reply_markup: mainMenu });
+    await ctx.reply('❌ Terjadi kesalahan. Coba lagi atau gunakan tombol menu.', { reply_markup: mainMenu });
   }
 });
 
