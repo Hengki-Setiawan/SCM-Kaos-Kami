@@ -718,13 +718,21 @@ bot.on('message:text', async (ctx) => {
       let preview = '';
       
       if (actionIntent.action === 'DELETE_PRODUCTS_BULK') {
-        const keyword = (actionIntent.keyword || actionIntent.name || actionIntent.sku || '').toLowerCase();
+        const keyword = (actionIntent.keyword || actionIntent.name || actionIntent.sku || '').toLowerCase().trim();
         if (!keyword) {
             await ctx.reply(`❌ Keyword pencarian tidak valid.`, { reply_markup: mainMenu });
             return;
         }
+        
+        const keywords = keyword.split(/\\s+/);
         const matches = await db.select().from(products);
-        const matchedProducts = matches.filter(p => p.name.toLowerCase().includes(keyword) || p.sku.toLowerCase().includes(keyword));
+        
+        const matchedProducts = matches.filter(p => {
+            const nameLower = p.name.toLowerCase();
+            const skuLower = p.sku.toLowerCase();
+            return keywords.every((k: string) => nameLower.includes(k)) || keywords.every((k: string) => skuLower.includes(k));
+        });
+
         if (matchedProducts.length === 0) {
             await ctx.reply(`❌ Tidak ditemukan produk yang mengandung kata "${keyword}" di database.`, { reply_markup: mainMenu });
             return;

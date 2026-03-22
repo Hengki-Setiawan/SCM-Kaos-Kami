@@ -65,11 +65,16 @@ export async function executeNonProductAction(action: any) {
     
     // --- BULK PRODUCT DELETE ---
     if (action.action === 'DELETE_PRODUCTS_BULK') {
-      const keyword = (action.keyword || '').toLowerCase();
+      const keyword = (action.keyword || '').toLowerCase().trim();
       if (!keyword) return { message: `❌ Keyword kosong.` };
       
+      const keywords = keyword.split(/\\s+/);
       const allProds = await db.select().from(products);
-      const matched = allProds.filter(p => p.name.toLowerCase().includes(keyword) || p.sku.toLowerCase().includes(keyword));
+      const matched = allProds.filter(p => {
+          const nameLower = p.name.toLowerCase();
+          const skuLower = p.sku.toLowerCase();
+          return keywords.every((k: string) => nameLower.includes(k)) || keywords.every((k: string) => skuLower.includes(k));
+      });
       
       if (matched.length === 0) return { message: `❌ Tidak menemukan produk dengan keyword "${keyword}".` };
       
