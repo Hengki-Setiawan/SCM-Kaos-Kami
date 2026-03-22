@@ -866,7 +866,7 @@ bot.callbackQuery('confirm_action', async (ctx) => {
     }
 
     // === NON-PRODUCT CRUD ACTIONS ===
-    const NON_PRODUCT_ACTIONS = ['CREATE_CATEGORY', 'DELETE_CATEGORY', 'CREATE_SUPPLIER', 'DELETE_SUPPLIER', 'CREATE_ORDER', 'DELETE_ORDER', 'UPDATE_ORDER_STATUS'];
+    const NON_PRODUCT_ACTIONS = ['CREATE_CATEGORY', 'DELETE_CATEGORY', 'CREATE_SUPPLIER', 'DELETE_SUPPLIER', 'CREATE_ORDER', 'DELETE_ORDER', 'UPDATE_ORDER_STATUS', 'DELETE_PRODUCTS_BULK'];
     if (NON_PRODUCT_ACTIONS.includes(action.action)) {
       const { executeNonProductAction } = await import('@/lib/ai-actions');
       const result = await executeNonProductAction(action);
