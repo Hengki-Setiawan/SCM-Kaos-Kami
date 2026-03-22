@@ -414,6 +414,78 @@ bot.hears('🏠 Menu Utama', async (ctx) => {
   await ctx.reply('🏠 Kembali ke menu utama.', { reply_markup: mainMenu });
 });
 
+// ==================== 🔁 INLINE CALLBACK HANDLERS ====================
+bot.callbackQuery('btn_mainmenu', async (ctx) => {
+  await ctx.answerCallbackQuery();
+  await ctx.reply('🏠 Kembali ke menu utama.', { reply_markup: mainMenu });
+});
+
+bot.callbackQuery('btn_orders', async (ctx) => {
+  await ctx.answerCallbackQuery();
+  try {
+    const recentOrders = await db.select().from(orders).orderBy(desc(orders.createdAt)).limit(5);
+    if (recentOrders.length === 0) { await ctx.reply('📋 Belum ada pesanan.', { reply_markup: mainMenu }); return; }
+    let msg = '📋 *5 Pesanan Terakhir:*\n\n';
+    recentOrders.forEach((o, i) => {
+      const statusIcon = o.status === 'completed' ? '✅' : o.status === 'shipped' ? '🚚' : o.status === 'processing' ? '⚙️' : o.status === 'cancelled' ? '❌' : '🕐';
+      msg += `${i + 1}. ${statusIcon} *${o.orderNumber}*\n   👤 ${o.customerName} | 📌 ${o.status}\n\n`;
+    });
+    await ctx.reply(msg, { parse_mode: 'Markdown', reply_markup: mainMenu });
+  } catch { await ctx.reply('❌ Gagal memuat pesanan.', { reply_markup: mainMenu }); }
+});
+
+bot.callbackQuery('btn_report', async (ctx) => {
+  await ctx.answerCallbackQuery();
+  try {
+    const allProds = await db.select().from(products);
+    const totalStock = allProds.reduce((a, p) => a + p.currentStock, 0);
+    const lowCount = allProds.filter(p => p.currentStock <= p.minStock).length;
+    const totalValue = allProds.reduce((a, p) => a + (p.currentStock * (p.unitPrice || 0)), 0);
+    const msg = `📈 *Ringkasan Laporan*\n\n📦 Total Produk: *${allProds.length}*\n🧮 Total Stok: *${totalStock}* pcs\n⚠️ Low Stock: *${lowCount}* produk\n💰 Nilai Inventaris: *Rp ${new Intl.NumberFormat('id-ID').format(totalValue)}*`;
+    await ctx.reply(msg, { parse_mode: 'Markdown', reply_markup: mainMenu });
+  } catch { await ctx.reply('❌ Gagal memuat laporan.', { reply_markup: mainMenu }); }
+});
+
+bot.callbackQuery('btn_lowstock', async (ctx) => {
+  await ctx.answerCallbackQuery();
+  try {
+    const lowItems = await db.select({ name: products.name, stock: products.currentStock, min: products.minStock })
+      .from(products).where(lte(products.currentStock, products.minStock)).limit(15);
+    if (lowItems.length === 0) { await ctx.reply('✅ Semua stok aman! Tidak ada yang rendah.', { reply_markup: mainMenu }); return; }
+    let msg = '⚠️ *Produk Stok Rendah:*\n\n';
+    lowItems.forEach(p => {
+      msg += `${p.stock === 0 ? '🔴' : '⚠️'} ${p.name}: *${p.stock}*/${p.min} pcs\n`;
+    });
+    await ctx.reply(msg, { parse_mode: 'Markdown', reply_markup: followUpStock });
+  } catch { await ctx.reply('❌ Gagal memuat data.', { reply_markup: mainMenu }); }
+});
+
+bot.callbackQuery('btn_po_link', async (ctx) => {
+  await ctx.answerCallbackQuery();
+  const url = process.env.NEXT_PUBLIC_APP_URL || 'https://scm-kaos-kami.vercel.app';
+  await ctx.reply(`📄 *Buat Purchase Order*\n\nSilakan buka Dashboard untuk membuat PO:\n🌐 [Buka Dashboard](${url}/dashboard)`, { parse_mode: 'Markdown', reply_markup: mainMenu });
+});
+
+// ==================== 🧮 KALKULATOR HARGA AI ====================
+bot.hears('🧮 Kalkulator', async (ctx) => {
+  const session = ctx.session;
+  session.lastQuery = 'CALC_MODE';
+  await ctx.reply(
+    '🧮 *Kalkulator Harga AI*\n\n' +
+    'Ketik salah satu format:\n\n' +
+    '📦 *Hitung HPP:*\n' +
+    '• _"hpp kaos hitam M"_\n' +
+    '• _"biaya produksi kaos polos"_\n\n' +
+    '💰 *Hitung Harga Jual (dengan margin):*\n' +
+    '• _"harga jual kaos hitam margin 40%"_\n' +
+    '• _"markup kaos polos 50%"_\n\n' +
+    '📊 *Profit Produk:*\n' +
+    '• _"profit kaos hitam M"_\n' +
+    '• _"untung dtf skizo"_',
+    { parse_mode: 'Markdown' }
+  );
+});
+
 // ==================== 📜 RIWAYAT ====================
 bot.hears('📜 Riwayat', async (ctx) => {
   try {
@@ -442,11 +514,11 @@ bot.hears('📜 Riwayat', async (ctx) => {
   }
 });
 
-// ==================== 🔍 CARI PRODUK ====================
+// ==================== 🔍 CARI PRODUK (Fuzzy-Enhanced) ====================
 bot.hears('🔍 Cari Produk', async (ctx) => {
   const session = ctx.session;
   session.lastQuery = 'SEARCH_MODE';
-  await ctx.reply('🔍 Ketik nama atau SKU produk yang ingin dicari:', { reply_markup: { force_reply: true } });
+  await ctx.reply('🔍 Ketik nama atau SKU produk yang ingin dicari.\n_Saya bisa mengenali typo dan kata mirip!_', { parse_mode: 'Markdown', reply_markup: { force_reply: true } });
 });
 
 // ==================== 📸 PHOTO HANDLER — VISION AI ====================
@@ -668,7 +740,10 @@ bot.on('message:text', async (ctx) => {
   const text = ctx.message.text;
   const session = ctx.session;
 
-  // Mode Pencarian
+  // -- Import smart-ai utilities --
+  const { findFuzzyMatches, parseIndonesianCurrency, detectMultiIntent, parseNaturalDate, predictStockRunout, analyzeTrend } = await import('@/lib/smart-ai');
+
+  // ==================== MODE: SEARCH (Fuzzy) ====================
   if (session.lastQuery === 'SEARCH_MODE') {
     session.lastQuery = undefined;
     try {
@@ -679,21 +754,174 @@ bot.on('message:text', async (ctx) => {
         .where(sql`lower(${products.name}) like ${query} or lower(${products.sku}) like ${query}`)
         .limit(10);
       
-      if (results.length === 0) {
-        await ctx.reply(`🔍 Tidak ditemukan produk dengan kata kunci "${text}".`, { reply_markup: mainMenu });
+      if (results.length > 0) {
+        let msg = `🔍 *Hasil Pencarian "${text}":*\n\n`;
+        results.forEach(p => {
+          const s = p.stock === 0 ? '🔴' : p.stock <= p.min ? '⚠️' : '✅';
+          msg += `${s} *${p.name}*\n   SKU: ${p.sku} | Stok: *${p.stock}* pcs\n\n`;
+        });
+        await ctx.reply(msg, { parse_mode: 'Markdown', reply_markup: mainMenu });
         return;
       }
-      let msg = `🔍 *Hasil Pencarian "${text}":*\n\n`;
-      results.forEach(p => {
-        const s = p.stock === 0 ? '🔴' : p.stock <= p.min ? '⚠️' : '✅';
-        msg += `${s} *${p.name}*\n   SKU: ${p.sku} | Stok: *${p.stock}* pcs\n\n`;
-      });
-      await ctx.reply(msg, { parse_mode: 'Markdown', reply_markup: mainMenu });
+      
+      // FUZZY FALLBACK: Suggest similar products
+      const allProds = await db.select().from(products);
+      const fuzzy = findFuzzyMatches(text, allProds, 3);
+      const goodMatches = fuzzy.filter(f => f.score >= 0.4);
+      
+      if (goodMatches.length > 0) {
+        let msg = `🔍 Produk "${text}" tidak ditemukan persis.\n\n💡 *Mungkin maksud Anda:*\n\n`;
+        goodMatches.forEach((f, i) => {
+          const s = f.item.currentStock === 0 ? '🔴' : f.item.currentStock <= f.item.minStock ? '⚠️' : '✅';
+          msg += `${i + 1}. ${s} *${f.item.name}*\n   SKU: ${f.item.sku} | Stok: *${f.item.currentStock}* pcs\n\n`;
+        });
+        await ctx.reply(msg, { parse_mode: 'Markdown', reply_markup: mainMenu });
+      } else {
+        await ctx.reply(`🔍 Tidak ditemukan produk yang mirip dengan "${text}".`, { reply_markup: mainMenu });
+      }
       return;
     } catch (e) {
       await ctx.reply('❌ Gagal mencari produk.', { reply_markup: mainMenu });
       return;
     }
+  }
+
+  // ==================== MODE: CALCULATOR ====================
+  if (session.lastQuery === 'CALC_MODE') {
+    session.lastQuery = undefined;
+    try {
+      const allProds = await db.select().from(products);
+      const fuzzy = findFuzzyMatches(text.replace(/hpp|profit|untung|margin|markup|harga\s*jual|biaya\s*produksi/gi, '').trim(), allProds, 1);
+      
+      if (fuzzy.length === 0 || fuzzy[0].score < 0.3) {
+        await ctx.reply('❌ Produk tidak ditemukan. Coba ketik nama yang lebih spesifik.', { reply_markup: mainMenu });
+        return;
+      }
+      const p = fuzzy[0].item;
+      const buyPrice = p.buyPrice || 0;
+      const sellPrice = p.unitPrice || 0;
+      const profitPerUnit = sellPrice - buyPrice;
+      const marginPct = sellPrice > 0 ? (profitPerUnit / sellPrice * 100).toFixed(1) : '0';
+
+      // Check if user wants specific margin
+      const marginMatch = text.match(/margin\s*(\d+)%?|markup\s*(\d+)%?/i);
+      if (marginMatch) {
+        const wantedMargin = parseInt(marginMatch[1] || marginMatch[2]) / 100;
+        const suggestedPrice = Math.ceil(buyPrice / (1 - wantedMargin));
+        await ctx.reply(
+          `🧮 *Kalkulator Harga Jual*\n\n` +
+          `📦 Produk: *${p.name}*\n` +
+          `💵 Harga Beli: Rp ${new Intl.NumberFormat('id-ID').format(buyPrice)}\n` +
+          `📊 Target Margin: ${(wantedMargin * 100).toFixed(0)}%\n` +
+          `─────────────────\n` +
+          `🏷️ *Harga Jual Rekomendasi: Rp ${new Intl.NumberFormat('id-ID').format(suggestedPrice)}*\n` +
+          `💰 Profit/pcs: Rp ${new Intl.NumberFormat('id-ID').format(suggestedPrice - buyPrice)}`,
+          { parse_mode: 'Markdown', reply_markup: mainMenu }
+        );
+      } else {
+        // Show full profit analysis
+        const recentMoves = await db.select().from(stockMovements).where(eq(stockMovements.productId, p.id));
+        const outMoves = recentMoves.filter(m => m.type === 'OUT');
+        const totalSold = outMoves.reduce((a, m) => a + m.quantity, 0);
+        
+        await ctx.reply(
+          `🧮 *Analisis Profit: ${p.name}*\n\n` +
+          `💵 Harga Beli: *Rp ${new Intl.NumberFormat('id-ID').format(buyPrice)}*\n` +
+          `🏷️ Harga Jual: *Rp ${new Intl.NumberFormat('id-ID').format(sellPrice)}*\n` +
+          `─────────────────\n` +
+          `💰 Profit/pcs: *Rp ${new Intl.NumberFormat('id-ID').format(profitPerUnit)}* (${marginPct}%)\n` +
+          `📦 Stok Saat Ini: *${p.currentStock}* pcs\n` +
+          `📊 Total Terjual: *${totalSold}* pcs\n` +
+          `💵 Total Revenue: *Rp ${new Intl.NumberFormat('id-ID').format(totalSold * sellPrice)}*\n` +
+          `💰 Total Profit: *Rp ${new Intl.NumberFormat('id-ID').format(totalSold * profitPerUnit)}*`,
+          { parse_mode: 'Markdown', reply_markup: mainMenu }
+        );
+      }
+      return;
+    } catch (e) {
+      await ctx.reply('❌ Gagal menghitung.', { reply_markup: mainMenu });
+      return;
+    }
+  }
+
+  // ==================== BUSINESS INTELLIGENCE COMMANDS ====================
+  const lower = text.toLowerCase();
+
+  // Prediksi Stok
+  if (lower.includes('prediksi') || lower.includes('forecast') || (lower.includes('kapan') && lower.includes('habis'))) {
+    try {
+      const allProds = await db.select().from(products);
+      const allMoves = await db.select().from(stockMovements);
+      let msg = '📉 *Prediksi Stok Kritis (Berdasarkan 30 Hari Terakhir):*\n\n';
+      let criticalCount = 0;
+
+      for (const p of allProds) {
+        const prodMoves = allMoves.filter(m => m.productId === p.id);
+        const pred = predictStockRunout(p.currentStock, prodMoves as any);
+        if (pred && pred.daysLeft <= 14 && pred.daysLeft >= 0) {
+          const icon = pred.daysLeft <= 3 ? '🔴' : pred.daysLeft <= 7 ? '🟡' : '🟢';
+          msg += `${icon} *${p.name}*\n   Sisa: ${p.currentStock} pcs | Rata-rata: ${pred.avgPerDay}/hari\n   ⏰ *Habis dalam ~${pred.daysLeft} hari*\n\n`;
+          criticalCount++;
+        }
+      }
+      if (criticalCount === 0) msg += '✅ Semua stok aman dalam 14 hari ke depan!';
+      else msg += `\n💡 _Restock ${criticalCount} produk di atas sebelum kehabisan!_`;
+
+      await ctx.reply(msg, { parse_mode: 'Markdown', reply_markup: followUpStock });
+      return;
+    } catch (e) { await ctx.reply('❌ Gagal mengkalkulasi prediksi.', { reply_markup: mainMenu }); return; }
+  }
+
+  // Analisis Tren
+  if (lower.includes('tren') || lower.includes('trend') || lower.includes('best seller') || lower.includes('bestseller')) {
+    try {
+      const allProds = await db.select().from(products);
+      const allMoves = await db.select().from(stockMovements);
+      const trend = analyzeTrend(allMoves as any, allProds);
+
+      let msg = '📊 *Analisis Tren Penjualan (7 Hari):*\n\n';
+      
+      if (trend.topSellers.length > 0) {
+        msg += '🏆 *Best Sellers:*\n';
+        trend.topSellers.forEach((t, i) => { msg += `${i + 1}. ${t.name}: *${t.sold}* pcs\n`; });
+      }
+      if (trend.rising.length > 0) {
+        msg += '\n📈 *Naik:*\n';
+        trend.rising.forEach(t => { msg += `• ${t.name}: +${t.change}%\n`; });
+      }
+      if (trend.falling.length > 0) {
+        msg += '\n📉 *Turun:*\n';
+        trend.falling.forEach(t => { msg += `• ${t.name}: ${t.change}%\n`; });
+      }
+      if (trend.topSellers.length === 0) msg += '_(Belum cukup data penjualan)_';
+
+      await ctx.reply(msg, { parse_mode: 'Markdown', reply_markup: followUpGeneral });
+      return;
+    } catch (e) { await ctx.reply('❌ Gagal menganalisis tren.', { reply_markup: mainMenu }); return; }
+  }
+
+  // Riwayat dengan Natural Date  
+  const dateRange = parseNaturalDate(text);
+  if (dateRange && (lower.includes('riwayat') || lower.includes('aktivitas') || lower.includes('history'))) {
+    try {
+      const moves = await db.select({
+        type: stockMovements.type, qty: stockMovements.quantity, reason: stockMovements.reason,
+        pName: products.name, at: stockMovements.createdAt
+      }).from(stockMovements)
+        .leftJoin(products, eq(stockMovements.productId, products.id))
+        .where(and(gte(stockMovements.createdAt, dateRange.start.toISOString()), lte(stockMovements.createdAt, dateRange.end.toISOString())))
+        .orderBy(desc(stockMovements.createdAt)).limit(15);
+      
+      if (moves.length === 0) { await ctx.reply(`📜 Tidak ada aktivitas pada periode ${dateRange.label}.`, { reply_markup: mainMenu }); return; }
+      let msg = `📜 *Riwayat ${dateRange.label} (${moves.length} aktivitas):*\n\n`;
+      moves.forEach(m => {
+        const icon = (m.type === 'IN' || m.type === 'ADJUSTMENT_IN') ? '📥' : '📤';
+        const sign = (m.type === 'IN' || m.type === 'ADJUSTMENT_IN') ? '+' : '-';
+        msg += `${icon} ${m.pName}: *${sign}${m.qty}*\n   _${m.reason}_\n\n`;
+      });
+      await ctx.reply(msg, { parse_mode: 'Markdown', reply_markup: mainMenu });
+      return;
+    } catch (e) { await ctx.reply('❌ Gagal memuat riwayat.', { reply_markup: mainMenu }); return; }
   }
 
   try {
@@ -744,7 +972,18 @@ bot.on('message:text', async (ctx) => {
       });
       
       if (matchedProducts.length === 0) {
-        await ctx.reply(`❌ Tidak ditemukan stok untuk produk yang mengandung "${keyword}".\n\nJika ingin menambah varian baru, gunakan perintah *"tambah produk ${keyword}"*.`, { parse_mode: 'Markdown' });
+        // Fuzzy fallback
+        const fuzzy = findFuzzyMatches(keyword, allProducts, 3);
+        const good = fuzzy.filter(f => f.score >= 0.4);
+        if (good.length > 0) {
+          let msg = `❌ Stok "${keyword}" tidak ditemukan persis.\n\n💡 *Mungkin maksud Anda:*\n\n`;
+          good.forEach((f, i) => {
+            msg += `${i + 1}. *${f.item.name}*: *${f.item.currentStock}* pcs\n`;
+          });
+          await ctx.reply(msg, { parse_mode: 'Markdown', reply_markup: followUpStock });
+        } else {
+          await ctx.reply(`❌ Tidak ditemukan stok untuk "${keyword}".\n\nJika ingin menambah varian baru, gunakan perintah *"tambah produk ${keyword}"*.`, { parse_mode: 'Markdown' });
+        }
         return;
       }
       
@@ -756,6 +995,12 @@ bot.on('message:text', async (ctx) => {
         totalStock += p.currentStock;
       }
       replyStr += `\n📊 Total Pencarian: *${totalStock}* pcs dari *${matchedProducts.length}* varian.`;
+      
+      // Save last product context for follow-up commands
+      if (matchedProducts.length === 1) {
+        session.lastProductId = matchedProducts[0].id;
+        session.lastProductName = matchedProducts[0].name;
+      }
       
       await ctx.reply(replyStr, { parse_mode: 'Markdown', reply_markup: followUpStock });
       session.contextMessages = []; // Bersihkan konteks agar tidak stuck di tanya stok

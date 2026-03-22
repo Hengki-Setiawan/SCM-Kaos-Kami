@@ -7,6 +7,8 @@ export interface BotSessionData {
   pendingAction?: any;
   lastCategory?: string;
   lastQuery?: string;
+  lastProductId?: string;
+  lastProductName?: string;
   contextMessages: {role: 'user' | 'assistant' | 'system', content: string}[];
   role?: string;
 }
