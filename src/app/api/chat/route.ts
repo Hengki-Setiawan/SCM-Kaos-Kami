@@ -18,12 +18,43 @@ export async function POST(req: Request) {
     const { allowed } = checkRateLimit(`chat:${ip}`, 10, 60000);
     if (!allowed) return NextResponse.json({ error: 'Terlalu banyak request. Coba lagi dalam 1 menit.' }, { status: 429 });
 
-    const { message, context } = await req.json();
+    const { message, context, imageUrl } = await req.json();
 
-    if (!message) {
-        return NextResponse.json({ error: 'Message is required' }, { status: 400 });
+    if (!message && !imageUrl) {
+        return NextResponse.json({ error: 'Message or Image is required' }, { status: 400 });
     }
 
+    // 1. VISION LOGIC (Jika ada gambar)
+    if (imageUrl) {
+      const visionPrompt = `Anda adalah AI Vision SCM "Kaos Kami". Analisis gambar ini dan tentukan TIPE:
+      1. **PRODUK** — Identifikasi warna, ukuran, jenis. Cocokkan dengan katalog.
+      2. **RESI/NOTA** — Ekstrak: customerName, trackingNumber, platform, items.
+      3. **NOTA_PENGELUARAN** — Ekstrak: title, amount, items, vendor.
+      4. **LAINNYA** — Ringkasan apa yang terlihat.
+      
+      Gunakan bahasa Indonesia yang santai tapi profesional. Berikan saran aksi.`;
+
+      const visionCompletion = await groq.chat.completions.create({
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: visionPrompt + (message ? `\nPesan user: "${message}"` : '') },
+              { type: 'image_url', image_url: { url: imageUrl } }
+            ]
+          }
+        ],
+        model: 'llama-3.2-11b-vision-preview',
+        temperature: 0.2,
+        max_tokens: 1024,
+      });
+
+      return NextResponse.json({ 
+        response: visionCompletion.choices[0]?.message?.content || 'Gagal menganalisis gambar.'
+      });
+    }
+
+    // 2. CHAT LOGIC (Standard text flow)
     // Ekstrak nama produk terakhir jika konteks ada
     let lastProductName = '';
     const lastAsstMsg = context && context.length > 0 ? context.filter((m: any) => m.role === 'assistant').pop() : null;

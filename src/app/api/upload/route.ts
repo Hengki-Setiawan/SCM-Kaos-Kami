@@ -18,12 +18,15 @@ export async function POST(req: Request) {
     }
 
     // E6: Validate file type and size
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+    const allowedTypes = [
+      'image/jpeg', 'image/png', 'image/webp', 'image/jpg',
+      'audio/mpeg', 'audio/wav', 'audio/webm', 'audio/ogg', 'audio/x-m4a'
+    ];
     if (!allowedTypes.includes(file.type)) {
-      return NextResponse.json({ error: 'Tipe file tidak didukung. Gunakan JPG, PNG, atau WEBP.' }, { status: 400 });
+      return NextResponse.json({ error: 'Tipe file tidak didukung.' }, { status: 400 });
     }
-    if (file.size > 5 * 1024 * 1024) {
-      return NextResponse.json({ error: 'Ukuran file maksimal 5MB.' }, { status: 400 });
+    if (file.size > 10 * 1024 * 1024) { // Increased to 10MB for audio
+      return NextResponse.json({ error: 'Ukuran file maksimal 10MB.' }, { status: 400 });
     }
 
     // Convert file to buffer, then to base64
@@ -34,10 +37,11 @@ export async function POST(req: Request) {
     // Upload to Cloudinary
     const result = await cloudinary.uploader.upload(fileBase64, {
       folder: folder,
-      transformation: [
-        { width: 1000, crop: 'limit' }, // Auto compress width
-        { quality: 'auto', fetch_format: 'auto' } // Auto format & quality
-      ]
+      resource_type: 'auto', // Support audio/video automaticaly
+      transformation: file.type.startsWith('image/') ? [
+        { width: 1000, crop: 'limit' }, 
+        { quality: 'auto', fetch_format: 'auto' } 
+      ] : undefined
     });
 
     return NextResponse.json({ 
