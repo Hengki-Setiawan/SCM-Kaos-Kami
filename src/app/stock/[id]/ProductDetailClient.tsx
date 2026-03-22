@@ -68,11 +68,11 @@ export default function ProductDetailClient({ initialProduct, categories, histor
   };
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 2fr)', gap: '1.5rem' }} className="mobile-col">
+    <div className="product-detail-grid">
       {/* Left Column - Image & Quick Edit */}
       <div className="flex flex-col gap-4" style={{ gridColumn: 'span 1' }}>
         <div className="glass-card flex flex-col items-center">
-          <div className="w-full h-64 bg-[rgba(var(--surface-hover),0.5)] rounded-xl flex items-center justify-center relative overflow-hidden mb-4">
+          <div className="product-img-container">
             {product.imageUrl ? (
               <Image src={product.imageUrl} alt={product.name} fill className="object-cover" sizes="(max-width: 768px) 100vw, 300px" />
             ) : (
@@ -86,8 +86,8 @@ export default function ProductDetailClient({ initialProduct, categories, histor
               </label>
             )}
           </div>
-          <h2 className="text-center w-full truncate">{product.name}</h2>
-          <span className="text-muted text-sm">{product.sku}</span>
+          <h2 className="text-center w-full" style={{ wordBreak: 'break-word', lineHeight: 1.3 }}>{product.name}</h2>
+          <span className="text-muted text-sm" style={{ wordBreak: 'break-all' }}>{product.sku}</span>
           
           <div className="w-full border-t border-[rgba(var(--border),0.5)] mt-4 pt-4 flex justify-between">
              <span className="text-muted text-sm">Stok Gudang</span>
@@ -116,14 +116,14 @@ export default function ProductDetailClient({ initialProduct, categories, histor
       </div>
 
       {/* Right Column - Attributes */}
-      <div className="flex flex-col gap-4" style={{ gridColumn: 'span 1' }}>
+      <div className="flex flex-col gap-4">
         <div className="glass-card">
-          <div className="flex justify-between items-center mb-6">
-            <h3>Spesifikasi Produk</h3>
+          <div className="flex justify-between items-center mb-6" style={{ flexWrap: 'wrap', gap: '0.5rem' }}>
+            <h3 style={{ margin: 0 }}>Spesifikasi Produk</h3>
             {!isEditing ? (
               <div className="flex gap-2">
-                <button className="btn btn-outline" onClick={() => setIsEditing(true)}>✏️ Edit</button>
-                <button className="btn-icon-danger" onClick={handleDelete} style={{ padding: '0.5rem 0.75rem', fontSize: '0.85rem' }}>🗑️ Hapus</button>
+                <button className="btn btn-outline" onClick={() => setIsEditing(true)} style={{ fontSize: '0.8rem', padding: '0.4rem 0.75rem', minHeight: '36px' }}>✏️ Edit</button>
+                <button className="btn-icon-danger" onClick={handleDelete} style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', minHeight: '36px' }}>🗑️ Hapus</button>
               </div>
             ) : (
               <div className="flex gap-2">
@@ -135,7 +135,7 @@ export default function ProductDetailClient({ initialProduct, categories, histor
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+          <div className="product-spec-grid">
             <div className="flex flex-col gap-1">
               <label className="text-xs text-muted">Nama Produk</label>
               <input type="text" className="input-field" value={product.name} onChange={e => handleUpdateField('name', e.target.value)} disabled={!isEditing} />
@@ -172,7 +172,7 @@ export default function ProductDetailClient({ initialProduct, categories, histor
             </div>
           </div>
           
-          <div className="border-t border-[rgba(var(--border),0.5)] mt-6 pt-6 grid grid-cols-2 gap-6">
+          <div className="border-t border-[rgba(var(--border),0.5)] mt-6 pt-6 product-spec-grid">
             <div className="flex flex-col gap-1">
               <label className="text-xs text-muted">Harga Beli / Modal (Rp)</label>
               <input type="number" className="input-field" value={product.buyPrice || 0} onChange={e => handleUpdateField('buyPrice', Number(e.target.value))} disabled={!isEditing} />

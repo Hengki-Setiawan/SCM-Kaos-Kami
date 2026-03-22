@@ -40,8 +40,8 @@ export const metadata: Metadata = {
     description: 'Sistem Manajemen Gudang Pintar',
   },
   icons: {
-    icon: '/logo-dark.svg',
-    apple: '/icon-192x192.png'
+    icon: '/icon-192.png',
+    apple: '/apple-touch-icon.png'
   }
 };
 
@@ -64,6 +64,8 @@ import { ConfirmProvider } from '@/components/ConfirmDialog';
 
 import SearchModal from '@/components/SearchModal';
 import InstallBanner from '@/components/InstallBanner';
+import NetworkStatus from '@/components/NetworkStatus';
+import AppUpdateBanner from '@/components/AppUpdateBanner';
 
 export default function RootLayout({
   children,
@@ -80,6 +82,8 @@ export default function RootLayout({
             </AppLayout>
             <SearchModal />
             <InstallBanner />
+            <NetworkStatus />
+            <AppUpdateBanner />
           </ConfirmProvider>
         </ToastProvider>
       </body>
