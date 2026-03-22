@@ -25,11 +25,25 @@ export default function Sidebar() {
 
   return (
     <aside className="sidebar glass-panel" style={{ borderRadius: 0, borderTop: 0, borderBottom: 0, borderLeft: 0 }}>
-      <div className="flex items-center gap-3" style={{ padding: '1.5rem', borderBottom: '1px solid rgba(var(--border), 0.5)' }}>
-        <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'linear-gradient(135deg, rgb(var(--primary)), rgb(var(--accent)))', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Shirt size={20} color="white" />
-        </div>
-        <h1 style={{ fontSize: '1.25rem', marginBottom: 0, background: 'linear-gradient(135deg, rgb(var(--primary)), rgb(var(--accent)))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Kaos Kami</h1>
+      <div className="flex items-center gap-3" style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid rgba(var(--border), 0.5)' }}>
+        <img 
+          src="/logo-dark.png" 
+          alt="Kaos Kami Logo" 
+          style={{ width: '40px', height: '40px', objectFit: 'contain' }}
+          className="dark:hidden"
+          onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling!.removeAttribute('style'); }}
+        />
+        <img 
+          src="/logo-light.png" 
+          alt="Kaos Kami Logo" 
+          style={{ width: '40px', height: '40px', objectFit: 'contain' }}
+          className="hidden dark:block"
+          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+        />
+        {/* Fallback Text if image is missing */}
+        <h1 style={{ display: 'none', fontSize: '1.25rem', marginBottom: 0, background: 'linear-gradient(135deg, rgb(var(--primary)), rgb(var(--accent)))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+          Stok KaosKami
+        </h1>
       </div>
       
       <nav style={{ padding: '0.75rem 0', flex: 1, overflowY: 'auto' }}>

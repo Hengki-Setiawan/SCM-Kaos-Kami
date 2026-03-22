@@ -40,7 +40,7 @@ export const metadata: Metadata = {
     description: 'Sistem Manajemen Gudang Pintar',
   },
   icons: {
-    icon: '/favicon.svg',
+    icon: '/logo-light.png',
     apple: '/icon-192x192.png'
   }
 };
