@@ -286,56 +286,61 @@ export default function ChatPage() {
                  <Square size={14} fill="currentColor" /> Selesai
                </button>
              )}
-          </div>
+           </div>
         )}
 
-        {/* Input Form */}
-        <form onSubmit={handleSend} className="p-4 bg-surface/95 flex items-center gap-2" style={{ borderTop: '1px solid rgba(var(--border), 0.3)' }}>
-          <input 
-            type="file" 
-            ref={fileInputRef} 
-            onChange={handleImageChange} 
-            accept="image/*" 
-            className="hidden" 
-          />
-          
-          <button 
-            type="button" 
-            onClick={() => fileInputRef.current?.click()}
-            className="p-2.5 rounded-full hover:bg-surface-hover text-muted-foreground transition-colors"
-            title="Upload Gambar"
-          >
-            <ImageIcon size={20} />
-          </button>
+        {/* Redesigned Input Form — Integrated Pill View */}
+        <div className="p-4 bg-surface" style={{ borderTop: '1px solid rgba(var(--border), 0.2)' }}>
+          <form onSubmit={handleSend} className="relative max-w-4xl mx-auto">
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              onChange={handleImageChange} 
+              accept="image/*" 
+              className="hidden" 
+            />
+            
+            <div className={`flex items-center gap-1 p-1.5 rounded-2xl bg-surface-hover/40 border-2 transition-all duration-300 ${isLoading ? 'opacity-50 grayscale' : 'focus-within:border-primary/30 focus-within:bg-surface focus-within:shadow-lg focus-within:shadow-primary/5'} border-transparent`}>
+              <button 
+                type="button" 
+                onClick={() => fileInputRef.current?.click()}
+                className="p-2.5 rounded-xl hover:bg-white text-muted-foreground hover:text-primary transition-all active:scale-95"
+                title="Upload Gambar"
+                disabled={isLoading}
+              >
+                <ImageIcon size={20} />
+              </button>
+              
+              {!input && !isLoading && (
+                <button 
+                  type="button" 
+                  onClick={isRecording ? stopRecording : startRecording}
+                  className={`p-2.5 rounded-xl transition-all active:scale-95 ${isRecording ? 'bg-danger text-white shadow-lg animate-pulse' : 'hover:bg-white text-muted-foreground hover:text-primary'}`}
+                  title={isRecording ? "Stop Recording" : "Pesan Suara"}
+                >
+                  {isRecording ? <Square size={20} /> : <Mic size={20} />}
+                </button>
+              )}
 
-          {!input && !isLoading && (
-            <button 
-              type="button" 
-              onClick={isRecording ? stopRecording : startRecording}
-              className={`p-2.5 rounded-full transition-all ${isRecording ? 'bg-danger text-white animate-pulse' : 'hover:bg-surface-hover text-muted-foreground'}`}
-              title={isRecording ? "Stop Recording" : "Voice Message"}
-            >
-              {isRecording ? <Square size={20} /> : <Mic size={20} />}
-            </button>
-          )}
+              <input 
+                type="text" 
+                className="flex-1 bg-transparent border-none focus:ring-0 text-sm py-2.5 px-3" 
+                placeholder={isRecording ? "Mendengarkan..." : "Tulis pesan atau tanya stok..."} 
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                disabled={isLoading || isRecording}
+              />
 
-          <input 
-            type="text" 
-            className="flex-1 bg-surface-hover/50 border-none focus:ring-1 focus:ring-primary/20 rounded-full px-5 py-2.5 text-sm" 
-            placeholder={isRecording ? "Sedang merekam suara..." : "Tulis pesan atau tanya stok..."} 
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            disabled={isLoading || isRecording}
-          />
-          
-          <button 
-            type="submit" 
-            className="p-2.5 bg-primary text-white rounded-full hover:opacity-90 disabled:opacity-50 disabled:grayscale transition-all shadow-md shadow-primary/20" 
-            disabled={isLoading || (!input.trim() && !imageFile)}
-          >
-            {isLoading ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
-          </button>
-        </form>
+              <button 
+                type="submit" 
+                className="p-2.5 bg-primary text-white rounded-xl hover:bg-primary-hover shadow-lg shadow-primary/20 disabled:opacity-0 disabled:scale-90 transition-all active:scale-95" 
+                disabled={isLoading || (!input.trim() && !imageFile)}
+              >
+                {isLoading ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );

@@ -2,7 +2,7 @@
 
 import useSWR from 'swr';
 import Link from 'next/link';
-import { Boxes, Warehouse, AlertTriangle, Clock, History, FileText, Package, TrendingUp, Calculator, Settings, ScanLine, Sparkles, Plus, BarChart3, Wallet, TrendingDown } from 'lucide-react';
+import { Boxes, Warehouse, AlertTriangle, Clock, History, FileText, Package, TrendingUp, Calculator, Settings, ScanLine, Sparkles, Plus, BarChart3, Wallet, TrendingDown, Download } from 'lucide-react';
 import { formatRupiah } from '@/lib/utils';
 
 const fetcher = (url: string) => fetch(url).then(res => res.json()).then(res => res.data);
@@ -147,15 +147,16 @@ export default function DashboardClient({ initialData }: { initialData: any }) {
               <Link href="/finance" className="btn btn-primary w-full text-sm"><Wallet size={14} /> Catat Pengeluaran</Link>
               <Link href="/stock" className="btn btn-outline w-full text-sm"><Package size={14} /> Kelola Stok</Link>
               <Link href="/orders" className="btn btn-outline w-full text-sm"><FileText size={14} /> Proses Pesanan</Link>
-              <Link href="/activity" className="btn btn-outline w-full text-sm"><History size={14} /> Jejak Audit</Link>
-              <Link href="/settings" className="btn btn-outline w-full text-sm"><Settings size={14} /> Pengaturan</Link>
+              <button id="install-button" className="btn btn-primary w-full text-sm hidden" onClick={() => (window as any).deferredPrompt?.prompt()}>
+                <Download size={14} /> Install Aplikasi
+              </button>
             </div>
           </div>
           
-          <div className="glass-card" style={{ background: 'rgba(var(--primary), 0.05)' }}>
-             <span className="text-muted text-xs block mb-1 uppercase tracking-widest">Aset Bersih</span>
-             <span className="text-xl font-bold">{formatRupiah(totalValue)}</span>
-             <p className="text-[10px] text-muted mt-2 italic">Nilai estimasi total stok yang ada di gudang saat ini.</p>
+          <div className="glass-card flex flex-col gap-2" style={{ background: 'rgba(var(--primary), 0.05)' }}>
+             <span className="text-muted text-xs block uppercase tracking-widest">Aset Bersih</span>
+             <span className="text-2xl font-bold">{formatRupiah(totalValue)}</span>
+             <p className="text-[10px] text-muted italic mt-auto">Nilai estimasi total stok yang ada di gudang saat ini.</p>
           </div>
         </div>
       </div>
@@ -170,16 +171,16 @@ export default function DashboardClient({ initialData }: { initialData: any }) {
             <p className="text-muted text-sm">Belum ada aktivitas hari ini.</p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {recentMovements.slice(0, 6).map((m: any) => (
-                <div key={m.id} className="flex items-center gap-3 p-3 rounded-lg border border-[rgba(var(--border),0.3)] hover:bg-[rgba(var(--surface-hover),0.2)] transition-all">
-                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: m.type === 'IN' ? 'rgba(var(--success),0.1)' : 'rgba(var(--danger),0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px' }}>
+               {recentMovements.slice(0, 6).map((m: any) => (
+                <div key={m.id} className="activity-item">
+                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: m.type === 'IN' ? 'rgba(var(--success),0.1)' : 'rgba(var(--danger),0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px' }}>
                     {m.type === 'IN' ? '➕' : '➖'}
                   </div>
                   <div className="flex-1 min-w-0">
                     <span className="text-sm font-semibold truncate block">{m.productName || 'Produk'}</span>
-                    <span className="text-[10px] text-muted block truncate">{m.reason}</span>
+                    <span className="text-[10px] text-muted block truncate font-medium">{m.reason}</span>
                   </div>
-                  <span className={`text-sm font-bold ${m.type === 'IN' ? 'text-[rgb(var(--success))]' : 'text-[rgb(var(--danger))]'}`}>
+                  <span className={`text-sm font-bold no-shrink ${m.type === 'IN' ? 'text-[rgb(var(--success))]' : 'text-[rgb(var(--danger))]'}`}>
                     {m.type === 'IN' ? '+' : '-'}{m.quantity}
                   </span>
                 </div>
