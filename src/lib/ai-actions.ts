@@ -62,6 +62,25 @@ export async function executeNonProductAction(action: any) {
       await db.delete(suppliers).where(eq(suppliers.id, sup.id));
       return { message: `🗑️ *Supplier "${sup.name}" Berhasil Dihapus*` };
     }
+    
+    // --- BULK PRODUCT DELETE ---
+    if (action.action === 'DELETE_PRODUCTS_BULK') {
+      const keyword = (action.keyword || '').toLowerCase();
+      if (!keyword) return { message: `❌ Keyword kosong.` };
+      
+      const allProds = await db.select().from(products);
+      const matched = allProds.filter(p => p.name.toLowerCase().includes(keyword) || p.sku.toLowerCase().includes(keyword));
+      
+      if (matched.length === 0) return { message: `❌ Tidak menemukan produk dengan keyword "${keyword}".` };
+      
+      await db.transaction(async (tx) => {
+          for (const p of matched) {
+              await tx.delete(stockMovements).where(eq(stockMovements.productId, p.id));
+              await tx.delete(products).where(eq(products.id, p.id));
+          }
+      });
+      return { message: `🗑️ *${matched.length} Produk Berhasil Dihapus Permanen!*\n\nSemua barang yang mengandung kata "${keyword}" beserta riwayat pergerakannya telah lenyap dari database.` };
+    }
 
     // --- ORDER CRUD ---
     if (action.action === 'CREATE_ORDER') {
