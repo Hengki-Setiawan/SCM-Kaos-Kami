@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import useSWR from 'swr';
 import Link from 'next/link';
-import { Plus, Zap } from 'lucide-react';
+import { Plus, Zap, ChevronRight, ChevronDown } from 'lucide-react';
 import { updateStock, updateMinStock } from '../actions/stock';
 import { deleteProduct, deleteProductsBulk } from '../actions/product';
 import { useToast } from '@/components/Toast';
@@ -149,7 +149,8 @@ export default function StockTableClient({ initialProducts, categories }: { init
 
   // Grouping Logic
   const getBaseName = (name: string) => {
-    return name.replace(/\s+(S|M|L|XL|XXL|2XL|3XL|4XL|5XL).*/i, '').trim();
+    // Gunakan word boundary \b agar tidak memotong kata seperti "Skizo" (karena ada 'S')
+    return name.replace(/\s+\b(S|M|L|XL|XXL|2XL|3XL|4XL|5XL)\b.*/i, '').trim();
   };
 
   const groupedProducts = filteredProducts.reduce((acc: any[], p: any) => {
@@ -331,10 +332,16 @@ export default function StockTableClient({ initialProducts, categories }: { init
                           />
                         </td>
                         <td style={{ padding: '0.85rem 1rem' }}>
-                          <span className={`expand-icon ${isExpanded ? 'expanded' : ''}`}>▶</span>
-                          <span style={{ fontWeight: 600 }}>{group.baseName}</span>
-                          {group.color && <span className="text-muted" style={{ marginLeft: '0.5rem', fontSize: '0.8rem' }}>• {group.color}</span>}
-                          <span className="group-badge">{group.variants.length} Varian</span>
+                          <div className="flex items-center gap-2">
+                            {isExpanded ? (
+                              <ChevronDown size={18} className="text-primary" />
+                            ) : (
+                              <ChevronRight size={18} className="text-muted" />
+                            )}
+                            <span style={{ fontWeight: 600 }}>{group.baseName}</span>
+                            {group.color && <span className="text-muted" style={{ fontSize: '0.8rem' }}>• {group.color}</span>}
+                            <span className="group-badge">{group.variants.length} Varian</span>
+                          </div>
                         </td>
                         <td style={{ padding: '0.85rem 1rem' }}>
                           <span style={{ fontWeight: 700, fontSize: '1.1rem' }}>{group.totalStock}</span>
@@ -365,10 +372,10 @@ export default function StockTableClient({ initialProducts, categories }: { init
                           </td>
                           <td style={{ padding: '0.65rem 1rem' }}>
                             <div className="variant-info">
-                              <Link href={`/stock/${product.id}`} className="product-link">
-                                {product.sku}
+                              <Link href={`/stock/${product.id}`} className="product-link" style={{ fontWeight: 600 }}>
+                                {product.size} {product.thickness ? `• ${product.thickness}` : ''}
                               </Link>
-                              <span className="variant-label">{product.size} {product.thickness ? `• ${product.thickness}` : ''}</span>
+                              <span className="text-xs text-muted" style={{ display: 'block' }}>{product.sku}</span>
                             </div>
                           </td>
                           <td style={{ padding: '0.65rem 1rem' }}>
@@ -440,7 +447,13 @@ export default function StockTableClient({ initialProducts, categories }: { init
                   </div>
                   <div className="flex justify-between items-center mt-1">
                     <span className="text-xl font-bold">{group.totalStock} <span className="text-xs font-normal text-muted">pcs</span></span>
-                    <span className="text-xs text-[rgb(var(--primary))] font-semibold">{isExpanded ? 'Sembunyikan' : 'Lihat Varian ▾'}</span>
+                    <div className="flex items-center gap-1 text-xs text-[rgb(var(--primary))] font-semibold">
+                      {isExpanded ? (
+                        <>Sembunyikan <ChevronDown size={14} /></>
+                      ) : (
+                        <>Lihat Varian <ChevronRight size={14} /></>
+                      )}
+                    </div>
                   </div>
                 </div>
 

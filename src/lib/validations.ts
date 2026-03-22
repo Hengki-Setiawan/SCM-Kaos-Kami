@@ -4,17 +4,17 @@ export const productSchema = z.object({
   name: z.string().min(3, 'Nama produk minimal 3 karakter'),
   sku: z.string().min(3, 'SKU minimal 3 karakter'),
   categoryId: z.string().min(1, 'Kategori wajib dipilih'),
-  color: z.string().optional(),
-  size: z.string().optional(),
-  material: z.string().optional(),
-  thickness: z.string().optional(),
-  sleeveType: z.string().optional(),
+  color: z.string().nullable().optional(),
+  size: z.string().nullable().optional(),
+  material: z.string().nullable().optional(),
+  thickness: z.string().nullable().optional(),
+  sleeveType: z.string().nullable().optional(),
   buyPrice: z.number().min(0, 'Harga beli tidak boleh negatif').optional(),
   unitPrice: z.number().min(0, 'Harga jual tidak boleh negatif').optional(),
   minStock: z.number().int().min(0, 'Minimal stok tidak boleh negatif').optional(),
   unitValue: z.number().int().min(1, 'Nilai satuan minimal 1').optional(),
   unitType: z.string().min(1, 'Tipe satuan wajib diisi'),
-  imageUrl: z.string().url('URL gambar tidak valid').optional().or(z.literal('')),
+  imageUrl: z.string().url('URL gambar tidak valid').nullable().optional().or(z.literal('')),
 });
 
 export const orderItemSchema = z.object({
