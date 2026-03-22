@@ -718,6 +718,42 @@ bot.on('message:text', async (ctx) => {
        return;
     }
 
+    // === NATIVE CHECK STOCK ===
+    if (actionIntent && actionIntent.action === 'CHECK_STOCK') {
+      const keyword = (actionIntent.keyword || '').toLowerCase().trim();
+      const allProducts = await db.select().from(products);
+      
+      if (!keyword) {
+        await ctx.reply(`📦 Silakan masukkan nama barang yang ingin dicari.`);
+        return;
+      }
+      
+      const keywords = keyword.split(/\s+/).filter((k: string) => k.length > 0);
+      const matchedProducts = allProducts.filter(p => {
+        const nameLower = p.name.toLowerCase();
+        const skuLower = p.sku.toLowerCase();
+        return keywords.every((k: string) => nameLower.includes(k) || skuLower.includes(k));
+      });
+      
+      if (matchedProducts.length === 0) {
+        await ctx.reply(`❌ Tidak ditemukan stok untuk produk yang mengandung "${keyword}".\n\nJika ingin menambah varian baru, gunakan perintah *"tambah produk ${keyword}"*.`, { parse_mode: 'Markdown' });
+        return;
+      }
+      
+      let replyStr = `📦 *Cek Stok: ${keyword.toUpperCase()}*\n\n`;
+      let totalStock = 0;
+      for (const p of matchedProducts) {
+        let emoji = p.currentStock <= p.minStock ? '🔴' : '✅';
+        replyStr += `${emoji} ${p.name}: *${p.currentStock}* ${p.unit}\n`;
+        totalStock += p.currentStock;
+      }
+      replyStr += `\n📊 Total Pencarian: *${totalStock}* pcs dari *${matchedProducts.length}* varian.`;
+      
+      await ctx.reply(replyStr, { parse_mode: 'Markdown', reply_markup: followUpStock });
+      session.contextMessages = []; // Bersihkan konteks agar tidak stuck di tanya stok
+      return;
+    }
+
     // === NON-PRODUCT CRUD ACTIONS (Categories, Suppliers, Orders, Bulk Product Delete) ===
     const NON_PRODUCT_ACTIONS = ['CREATE_CATEGORY', 'DELETE_CATEGORY', 'CREATE_SUPPLIER', 'DELETE_SUPPLIER', 'CREATE_ORDER', 'DELETE_ORDER', 'UPDATE_ORDER_STATUS', 'DELETE_PRODUCTS_BULK', 'CREATE_PRODUCT', 'UPDATE_PRODUCT_NAME'];
     if (actionIntent && NON_PRODUCT_ACTIONS.includes(actionIntent.action)) {
@@ -982,12 +1018,20 @@ DAFTAR ACTION:
 - "UPDATE_PRODUCT_NAME": Ubah atau ganti nama barang (wajib "sku" lama dari katalog, "newName").
 - "ADD_STOCK"/"DEDUCT_STOCK": Update stok produk yang sudah ada di katalog.
 - "DELETE_PRODUCTS_BULK": Hapus banyak barang (butuh keyword).
-- "CHAT": Sapaan atau tanya stok.
+- "CHECK_STOCK": Jika user hanya ingin mengecek stok barang tertentu (wajib "keyword").
+- "CHAT": Sapaan santai.
+
+PENTING UNTUK PENCOCOKAN KATALOG:
+- JANGAN PERNAH menebak SKU jika pesanan user menyebutkan VARIANT (seperti ukuran XL/L atau jenis kain) yang TIDAK ADA namanya secara persis di KATALOG.
+- Jika user pesan "Kaos ukuran XL" namun di katalog hanya ada "M", DILARANG menggunakan SKU "M". Gunakan "CHAT" untuk menolak!
+- Wajib cocok 100% jika itu tindakan manipulasi stok.
 
 CONTOH:
 User: "tambah dtf skizo putih" -> {"action":"CREATE_PRODUCT","name":"DTF Skizo Putih","category":"dtf","qty":0}
 User: "tambah stok kaos hitam 10" -> {"action":"ADD_STOCK","sku":"KAOS-HITAM","qty":10}
 User: "ubah nama dtf skizo jadi dtf skizo hitam" -> {"action":"UPDATE_PRODUCT_NAME","sku":"SKIZO", "newName":"DTF Skizo Hitam"}
+User: "cek stok kaos hitam" -> {"action":"CHECK_STOCK","keyword":"kaos hitam"}
+User: "tambah stok kaos hitam XL 2" (padahal ga ada XL) -> {"action":"CHAT"}
 
 KATALOG:
 ${catalogStr}
