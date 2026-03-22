@@ -184,6 +184,13 @@ p { margin-bottom: 0.75rem; line-height: 1.6; }
 .pt-3 { padding-top: 0.75rem; }
 .pt-4 { padding-top: 1rem; }
 
+/* Text Utilities */
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Custom Chat Input Utility Classes */
 .chat-input-wrapper {
   display: flex;
