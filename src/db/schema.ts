@@ -160,3 +160,9 @@ export const expenses = sqliteTable('expenses', {
   receiptUrl: text('receipt_url'),
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull()
 });
+
+export const telegramSessions = sqliteTable('telegram_sessions', {
+  id: text('id').primaryKey(),
+  data: text('data').notNull(),
+  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull()
+});

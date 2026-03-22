@@ -3,9 +3,17 @@ import { db } from '@/db';
 import { products, orders, stockMovements, categories, telegramUsers, expenses, suppliers, orderItems } from '@/db/schema';
 import { desc, eq, sql, lte, gte, and } from 'drizzle-orm';
 import { Groq } from 'groq-sdk';
+import { session, Context, SessionFlavor } from 'grammy';
+import { getTursoAdapter, BotSessionData } from '@/lib/turso-session';
 import { v4 as uuidv4 } from 'uuid';
 
-const bot = new Bot(process.env.TELEGRAM_BOT_TOKEN as string);
+type MyContext = Context & SessionFlavor<BotSessionData>;
+const bot = new Bot<MyContext>(process.env.TELEGRAM_BOT_TOKEN as string);
+
+bot.use(session({
+  initial: (): BotSessionData => ({ contextMessages: [] }),
+  storage: getTursoAdapter(),
+}));
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 // ==================== TIME-BASED GREETING ====================
@@ -30,18 +38,7 @@ const followUpGeneral = new InlineKeyboard()
   .text('📦 Stok', 'btn_stock').text('📋 Pesanan', 'btn_orders').row()
   .text('📈 Laporan', 'btn_report').text('🏠 Menu', 'btn_mainmenu');
 
-// ==================== SESSION STATE ====================
-const sessions = new Map<number, { 
-  pendingAction?: any; 
-  lastCategory?: string; 
-  lastQuery?: string;
-  contextMessages: {role: 'user' | 'assistant' | 'system', content: string}[];
-}>();
 
-function getSession(chatId: number) {
-  if (!sessions.has(chatId)) sessions.set(chatId, { contextMessages: [] });
-  return sessions.get(chatId)!;
-}
 
 // ==================== MAIN KEYBOARD (Persistent Buttons) ====================
 const mainMenu = new Keyboard()
@@ -436,7 +433,7 @@ bot.hears('📜 Riwayat', async (ctx) => {
 
 // ==================== 🔍 CARI PRODUK ====================
 bot.hears('🔍 Cari Produk', async (ctx) => {
-  const session = getSession(ctx.chat.id);
+  const session = ctx.session;
   session.lastQuery = 'SEARCH_MODE';
   await ctx.reply('🔍 Ketik nama atau SKU produk yang ingin dicari:', { reply_markup: { force_reply: true } });
 });
@@ -447,7 +444,7 @@ bot.hears('📸 Scan Resi', async (ctx) => {
 });
 
 bot.on('message:photo', async (ctx) => {
-  const session = getSession(ctx.chat.id);
+  const session = ctx.session;
   const caption = ctx.message.caption || '';
 
   try {
@@ -593,7 +590,7 @@ bot.on('message:voice', async (ctx) => {
 
     await ctx.reply(`🎙️ *Transkrip:*\n_"${transcript.trim()}"_\n\n⏳ Sedang memproses perintah...`, { parse_mode: 'Markdown' });
 
-    const session = getSession(ctx.chat.id);
+    const session = ctx.session;
     session.contextMessages.push({ role: 'user', content: `[VOICE] ${transcript.trim()}` });
     if (session.contextMessages.length > 10) session.contextMessages = session.contextMessages.slice(-10);
 
@@ -658,7 +655,7 @@ bot.on('message:voice', async (ctx) => {
 // ==================== FREE TEXT (AI Smart Handler) ====================
 bot.on('message:text', async (ctx) => {
   const text = ctx.message.text;
-  const session = getSession(ctx.chat.id);
+  const session = ctx.session;
 
   // Mode Pencarian
   if (session.lastQuery === 'SEARCH_MODE') {
@@ -889,7 +886,7 @@ bot.on('message:text', async (ctx) => {
 // ==================== CONFIRM / CANCEL CALLBACKS ====================
 bot.callbackQuery('confirm_action', async (ctx) => {
   await ctx.answerCallbackQuery('⏳ Memproses...');
-  const session = getSession(ctx.chat?.id || 0);
+  const session = ctx.session;
   try {
     const action = session.pendingAction;
 
@@ -950,7 +947,7 @@ bot.callbackQuery('confirm_action', async (ctx) => {
 
 bot.callbackQuery('cancel_action', async (ctx) => {
   await ctx.answerCallbackQuery('Dibatalkan.');
-  const session = getSession(ctx.chat?.id || 0);
+  const session = ctx.session;
   session.pendingAction = undefined;
   session.contextMessages = []; // Bersihkan riwayat ketika dibatalkan agar tidak terulang
   await ctx.editMessageText('❌ Aksi dibatalkan.');

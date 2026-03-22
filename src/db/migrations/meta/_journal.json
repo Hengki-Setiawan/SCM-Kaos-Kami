@@ -15,6 +15,13 @@
       "when": 1774021857378,
       "tag": "0001_pink_klaw",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1774164738282,
+      "tag": "0002_famous_ego",
+      "breakpoints": true
     }
   ]
 }
