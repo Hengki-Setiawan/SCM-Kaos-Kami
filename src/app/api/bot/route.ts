@@ -456,8 +456,35 @@ bot.callbackQuery('btn_lowstock', async (ctx) => {
     lowItems.forEach(p => {
       msg += `${p.stock === 0 ? '🔴' : '⚠️'} ${p.name}: *${p.stock}*/${p.min} pcs\n`;
     });
-    await ctx.reply(msg, { parse_mode: 'Markdown', reply_markup: followUpStock });
+    
+    const lowStockKB = new InlineKeyboard()
+      .text('📝 Draft PO Otomatis', 'btn_auto_po').row()
+      .text('🔙 Kembali ke Kategori', 'show_categories_menu').text('🏠 Menu', 'btn_mainmenu');
+      
+    await ctx.reply(msg, { parse_mode: 'Markdown', reply_markup: lowStockKB });
   } catch { await ctx.reply('❌ Gagal memuat data.', { reply_markup: mainMenu }); }
+});
+
+bot.callbackQuery('btn_auto_po', async (ctx) => {
+   await ctx.answerCallbackQuery('Membuat draf PO...');
+   try {
+       const lowItems = await db.select({ name: products.name, stock: products.currentStock, min: products.minStock })
+         .from(products).where(lte(products.currentStock, products.minStock));
+       
+       if (lowItems.length === 0) { await ctx.reply('✅ Semua stok aman.', { reply_markup: mainMenu }); return; }
+       
+       let msg = `📄 *Draf Purchase Order Otomatis*\n_Rekomendasi Reorder Berdasarkan Stok Kritis_\n\n`;
+       lowItems.forEach((p, i) => {
+          // Rekomendasi restock (MinTarget x3 dikurangi sisa) dengan minimal restock 10pcs
+          const suggestRestock = Math.max(10, (p.min * 3) - p.stock); 
+          msg += `${i + 1}. *${p.name}*\n   📦 Rekomendasi Pesan: *${suggestRestock}* pcs\n`;
+       });
+       
+       msg += `\n_Teruskan rincian ini langsung ke Penyuplai Anda._`;
+       await ctx.reply(msg, { parse_mode: 'Markdown', reply_markup: mainMenu });
+   } catch {
+       await ctx.reply('❌ Gagal membuat draf PO.', { reply_markup: mainMenu });
+   }
 });
 
 bot.callbackQuery('btn_po_link', async (ctx) => {
@@ -934,8 +961,46 @@ bot.on('message:text', async (ctx) => {
     session.contextMessages.push({ role: 'user', content: text });
     if (session.contextMessages.length > 5) session.contextMessages.shift();
 
-    // 1. Cek apakah ini aksi database (kurangi/tambah/kirim/biaya)
-    const actionIntent = await parseAIIntent(text, session.contextMessages);
+    // 1. Cek Multi-Intent (Batch Operations)
+    const { detectMultiIntent } = await import('@/lib/smart-ai');
+    const multiIntents = detectMultiIntent(text);
+    
+    // Jika lebih dari 1 aksi terdeteksi, lakukan Batch Operation
+    if (multiIntents.length > 1 && !text.toLowerCase().includes('buat pesanan')) {
+      const { executeStockActionDirectly } = await import('@/lib/ai-actions');
+      let summary = '📦 *Eksekusi Massal (Batch Operations):*\n\n';
+      let successCount = 0;
+      
+      await ctx.reply('⏳ Memproses beberapa perintah sekaligus...');
+      
+      for (const mi of multiIntents) {
+         // Terjemahkan perintah mentah kembali ke text untuk Parser
+         const fakeText = `${mi.action} ${mi.productQuery} ${mi.qty}`;
+         const singleIntent = await parseAIIntent(fakeText, session.contextMessages, session.lastProductName);
+         
+         if (singleIntent && singleIntent.action !== 'CHAT') {
+            const res = await executeStockActionDirectly(singleIntent, 'telegram');
+            if (res && res.message) {
+                // Bersihkan "Berhasil eksekusi perintah!" agar rapi
+                summary += res.message.replace(/✅ Berhasil eksekusi perintah!\n/, '✅ ') + '\n\n';
+                successCount++;
+            } else {
+                summary += `❌ Gagal memproses: ${mi.productQuery}\n\n`;
+            }
+         } else {
+            summary += `❌ Gagal mengenali: ${mi.productQuery}\n\n`;
+         }
+      }
+      
+      if (successCount > 0) {
+         await ctx.reply(summary, { parse_mode: 'Markdown', reply_markup: mainMenu });
+         session.contextMessages = [];
+         return;
+      }
+    }
+
+    // 2. Cek apakah ini aksi database tunggal (kurangi/tambah/kirim/biaya)
+    const actionIntent = await parseAIIntent(text, session.contextMessages, session.lastProductName);
     
     if (actionIntent && actionIntent.action === 'LOG_EXPENSE') {
        const confirmKeyboard = new InlineKeyboard()
@@ -1257,12 +1322,18 @@ bot.callbackQuery(/^undo_(.+)$/, async (ctx) => {
 });
 
 // ==================== AI INTENT PARSER (Lightweight) ====================
-async function parseAIIntent(text: string, contextMessages: {role: string, content: string}[] = []) {
+async function parseAIIntent(text: string, contextMessages: {role: string, content: string}[] = [], lastProductName?: string) {
   try {
     const allProd = await db.select({ sku: products.sku, name: products.name }).from(products);
     const catalogStr = allProd.map(p => `[SKU: ${p.sku}] ${p.name}`).join('\\n');
     let ctxStr = contextMessages.map(m => `${m.role}: ${m.content}`).join('\\n');
     
+    // Auto-inject context if user says e.g "tambah 5"
+    let userText = text;
+    if (lastProductName && (text.toLowerCase().match(/^(tambah|kurangi|beli|jual|pesan|kirim|masukin)\s*\d+$/))) {
+       userText = `${text} ${lastProductName}`;
+    }
+
     const systemContent = `ASISTEN GUDANG STRUKTUR: KELUARKAN HANYA JSON.
 DAFTAR ACTION:
 - "CREATE_PRODUCT": Untuk "tambah barang baru", "tambah jenis", "tambah varian". Wajib kategori.
@@ -1274,12 +1345,14 @@ DAFTAR ACTION:
 
 PENTING UNTUK PENCOCOKAN KATALOG:
 - JANGAN PERNAH menebak SKU jika pesanan user menyebutkan VARIANT (seperti ukuran XL/L atau jenis kain) yang TIDAK ADA namanya secara persis di KATALOG.
+- Konteks produk terakhir yang dibahas: "${lastProductName || 'Belum ada'}"
 - Jika user pesan "Kaos ukuran XL" namun di katalog hanya ada "M", DILARANG menggunakan SKU "M". Gunakan "CHAT" untuk menolak!
 - Wajib cocok 100% jika itu tindakan manipulasi stok.
 
 CONTOH:
 User: "tambah dtf skizo putih" -> {"action":"CREATE_PRODUCT","name":"DTF Skizo Putih","category":"dtf","qty":0}
 User: "tambah stok kaos hitam 10" -> {"action":"ADD_STOCK","sku":"KAOS-HITAM","qty":10}
+User: "tambah 5" (bila konteks produk terakhir "Kaos Polos Hitam XL") -> {"action":"ADD_STOCK","sku":"Kaos Polos Hitam XL","qty":5}
 User: "ubah nama dtf skizo jadi dtf skizo hitam" -> {"action":"UPDATE_PRODUCT_NAME","sku":"SKIZO", "newName":"DTF Skizo Hitam"}
 User: "cek stok kaos hitam" -> {"action":"CHECK_STOCK","keyword":"kaos hitam"}
 User: "tambah stok kaos hitam XL 2" (padahal ga ada XL) -> {"action":"CHAT"}
@@ -1288,7 +1361,7 @@ KATALOG:
 ${catalogStr}
 
 KONTEKS: ${ctxStr}
-USER: "${text}"`;
+USER: "${userText}"`;
     
     const completion = await groq.chat.completions.create({
       messages: [{ role: 'system', content: systemContent }],
