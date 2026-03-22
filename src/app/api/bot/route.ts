@@ -919,23 +919,15 @@ bot.callbackQuery('confirm_action', async (ctx) => {
       return;
     }
 
-    const { parseAndExecuteAIAction } = await import('@/lib/ai-actions');
-    // Reconstruct the original command text for the parser
-    let cmdText = '';
-    if (action.action === 'DEDUCT_STOCK') cmdText = `kurangi stok ${action.sku} ${action.qty}`;
-    else if (action.action === 'ADD_STOCK') cmdText = `tambah stok ${action.sku} ${action.qty}`;
-    else if (action.action === 'UPDATE_STOCK') cmdText = `ubah stok ${action.sku} jadi ${action.qty}`;
-    else if (action.action === 'PROCESS_ORDER') cmdText = `kirim ${action.qty || 1} paket ${action.sku}`;
-    else if (action.action === 'DELETE_PRODUCT') cmdText = `hapus barang ${action.sku}`;
-
-    const result = await parseAndExecuteAIAction(cmdText, 'telegram', session.contextMessages);
+    const { executeStockActionDirectly } = await import('@/lib/ai-actions');
+    const result = await executeStockActionDirectly(action, 'telegram', session.contextMessages);
     session.pendingAction = undefined;
 
     if (result && typeof result === 'object' && result.undoToken) {
       const undoKeyboard = new InlineKeyboard().text('↩️ Undo Aksi Ini', `undo_${result.undoToken}`);
       await ctx.editMessageText(result.message, { parse_mode: 'Markdown', reply_markup: undoKeyboard });
     } else {
-      await ctx.editMessageText(result?.message || '✅ Aksi berhasil dieksekusi!', { parse_mode: 'Markdown' });
+      await ctx.editMessageText(result?.message || '❌ Gagal mengeksekusi aksi. (Terjadi Timeout/Data Tidak Lengkap)', { parse_mode: 'Markdown' });
     }
     session.contextMessages = []; // Bersihkan riwayat setelah aksi berhasil
   } catch (e) {

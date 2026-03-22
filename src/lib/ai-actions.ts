@@ -277,6 +277,18 @@ export async function parseAndExecuteAIAction(text: string, source: 'web' | 'tel
       return null;
     }
 
+    return await executeStockActionDirectly(intent, source, contextMessages);
+
+  } catch (error) {
+    console.error('AI Action Parse Error:', error);
+    return null;
+  }
+}
+
+export async function executeStockActionDirectly(intent: any, source: 'web' | 'telegram' = 'web', contextMessages: any[] = []) {
+  try {
+    const allProducts = await db.select().from(products);
+
     const p = allProducts.find(x => 
       x.sku.toLowerCase() === intent.sku.toLowerCase() || 
       x.name.toLowerCase() === intent.sku.toLowerCase() ||
