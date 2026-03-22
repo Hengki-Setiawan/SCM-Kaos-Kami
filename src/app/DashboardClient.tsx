@@ -1,5 +1,6 @@
 'use client';
 
+import React, { useState, useEffect } from 'react';
 import useSWR from 'swr';
 import Link from 'next/link';
 import { Boxes, Warehouse, AlertTriangle, Clock, History, FileText, Package, TrendingUp, Calculator, Settings, ScanLine, Sparkles, Plus, BarChart3, Wallet, TrendingDown, Download } from 'lucide-react';
@@ -8,6 +9,18 @@ import { formatRupiah } from '@/lib/utils';
 const fetcher = (url: string) => fetch(url).then(res => res.json()).then(res => res.data);
 
 export default function DashboardClient({ initialData }: { initialData: any }) {
+  const [showInstallButton, setShowInstallButton] = useState(false);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      e.preventDefault();
+      (window as any).deferredPrompt = e;
+      setShowInstallButton(true);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
   const { data, error } = useSWR('/api/dashboard/stats', fetcher, {
     fallbackData: initialData,
     refreshInterval: 30000,
@@ -142,14 +155,33 @@ export default function DashboardClient({ initialData }: { initialData: any }) {
 
         <div className="flex flex-col gap-6 lg:col-span-1">
           <div className="glass-card">
-            <h3 className="mb-3 flex items-center gap-2"><Sparkles size={18} /> Aksi Cepat</h3>
-            <div className="flex flex-col gap-2">
+            <span className="text-muted text-xs block mb-3 uppercase tracking-widest font-semibold flex items-center gap-1">
+              <Sparkles size={18} /> Aksi Cepat
+            </span>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
               <Link href="/finance" className="btn btn-primary w-full text-sm"><Wallet size={14} /> Catat Pengeluaran</Link>
               <Link href="/stock" className="btn btn-outline w-full text-sm"><Package size={14} /> Kelola Stok</Link>
               <Link href="/orders" className="btn btn-outline w-full text-sm"><FileText size={14} /> Proses Pesanan</Link>
-              <button id="install-button" className="btn btn-primary w-full text-sm hidden" onClick={() => (window as any).deferredPrompt?.prompt()}>
-                <Download size={14} /> Install Aplikasi
-              </button>
+              {showInstallButton && (
+                <button
+                  id="install-button"
+                  className="btn btn-outline w-full text-sm"
+                  onClick={() => {
+                    const promptEvent = (window as any).deferredPrompt;
+                    if (promptEvent) {
+                      promptEvent.prompt();
+                      promptEvent.userChoice.then(() => {
+                        (window as any).deferredPrompt = null;
+                        setShowInstallButton(false); // Hide button after user choice
+                      });
+                    } else {
+                      alert('Aplikasi sudah terpasang atau browser Anda tidak mendukung.');
+                    }
+                  }}
+                >
+                  <Download size={14} /> Install Aplikasi
+                </button>
+              )}
             </div>
           </div>
           

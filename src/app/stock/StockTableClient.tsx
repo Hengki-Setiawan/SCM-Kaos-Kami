@@ -260,10 +260,9 @@ export default function StockTableClient({ initialProducts, categories }: { init
             <button
               key={cat.id}
               onClick={() => setActiveCategory(cat.id)}
-              className={`btn touch-target ${activeCategory === cat.id ? 'btn-primary' : 'btn-outline'}`}
-              style={{ whiteSpace: 'nowrap' }}
+              className={`btn touch-target no-shrink ${activeCategory === cat.id ? 'btn-primary' : 'btn-outline'}`}
             >
-              <span style={{ marginRight: '0.5rem' }}>{cat.icon}</span> {cat.name}
+              <span>{cat.icon}</span> <span>{cat.name}</span>
             </button>
           ))}
         </div>

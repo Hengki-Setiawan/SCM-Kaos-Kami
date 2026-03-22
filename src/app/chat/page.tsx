@@ -300,11 +300,11 @@ export default function ChatPage() {
               className="hidden" 
             />
             
-            <div className={`flex items-center gap-1 p-1.5 rounded-2xl bg-surface-hover/40 border-2 transition-all duration-300 ${isLoading ? 'opacity-50 grayscale' : 'focus-within:border-primary/30 focus-within:bg-surface focus-within:shadow-lg focus-within:shadow-primary/5'} border-transparent`}>
+            <div className="chat-input-wrapper">
               <button 
                 type="button" 
                 onClick={() => fileInputRef.current?.click()}
-                className="p-2.5 rounded-xl hover:bg-white text-muted-foreground hover:text-primary transition-all active:scale-95"
+                className="chat-input-btn"
                 title="Upload Gambar"
                 disabled={isLoading}
               >
@@ -315,7 +315,8 @@ export default function ChatPage() {
                 <button 
                   type="button" 
                   onClick={isRecording ? stopRecording : startRecording}
-                  className={`p-2.5 rounded-xl transition-all active:scale-95 ${isRecording ? 'bg-danger text-white shadow-lg animate-pulse' : 'hover:bg-white text-muted-foreground hover:text-primary'}`}
+                  className={`chat-input-btn ${isRecording ? 'text-danger' : ''}`}
+                  style={isRecording ? { color: 'rgb(var(--danger))', animation: 'pulse 2s infinite' } : {}}
                   title={isRecording ? "Stop Recording" : "Pesan Suara"}
                 >
                   {isRecording ? <Square size={20} /> : <Mic size={20} />}
@@ -324,7 +325,7 @@ export default function ChatPage() {
 
               <input 
                 type="text" 
-                className="flex-1 bg-transparent border-none focus:ring-0 text-sm py-2.5 px-3" 
+                className="chat-input-field" 
                 placeholder={isRecording ? "Mendengarkan..." : "Tulis pesan atau tanya stok..."} 
                 value={input}
                 onChange={e => setInput(e.target.value)}
@@ -333,7 +334,7 @@ export default function ChatPage() {
 
               <button 
                 type="submit" 
-                className="p-2.5 bg-primary text-white rounded-xl hover:bg-primary-hover shadow-lg shadow-primary/20 disabled:opacity-0 disabled:scale-90 transition-all active:scale-95" 
+                className="chat-send-btn" 
                 disabled={isLoading || (!input.trim() && !imageFile)}
               >
                 {isLoading ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
