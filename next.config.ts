@@ -16,9 +16,7 @@ const withPWA = withPWAInit({
 const nextConfig: NextConfig = {
   // Silence the Next 16 error when a plugin adds webpack config
   turbopack: {},
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+// eslint removed
   typescript: {
     ignoreBuildErrors: true,
   },

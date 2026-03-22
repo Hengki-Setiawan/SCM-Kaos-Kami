@@ -227,6 +227,65 @@ export async function executeNonProductAction(action: any) {
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
+// ==================== AI INTENT PARSER (Lightweight & Universal) ====================
+export async function parseAIIntent(text: string, contextMessages: {role: string, content: string}[] = [], lastProductName?: string) {
+  try {
+    const allProd = await db.select({ sku: products.sku, name: products.name }).from(products);
+    const catalogStr = allProd.map(p => `[SKU: ${p.sku}] ${p.name}`).join('\\n');
+    let ctxStr = contextMessages.map(m => `${m.role}: ${m.content}`).join('\\n');
+    
+    // Auto-inject context if user says e.g "tambah 5"
+    let userText = text;
+    if (lastProductName && (text.toLowerCase().match(/^(tambah|kurangi|beli|jual|pesan|kirim|masukin)\s*\d+$/))) {
+       userText = `${text} ${lastProductName}`;
+    }
+
+    const systemContent = `ASISTEN GUDANG STRUKTUR: KELUARKAN HANYA JSON.
+DAFTAR ACTION:
+- "CREATE_PRODUCT": Untuk "tambah barang baru", "tambah jenis", "tambah varian". Wajib kategori.
+- "UPDATE_PRODUCT_NAME": Ubah atau ganti nama barang (wajib "sku" lama dari katalog, "newName").
+- "ADD_STOCK"/"DEDUCT_STOCK": Update stok produk yang sudah ada di katalog.
+- "DELETE_PRODUCTS_BULK": Hapus banyak barang (butuh keyword).
+- "CHECK_STOCK": Jika user ingin mengecek stok barang tertentu ATAU ingin melihat isi sebuah KATEGORI (misal: "buka kategori kaos", "stok baju jadi"). Wajib isi "keyword".
+- "CHAT": Sapaan santai. Membalas pertanyaan seputar stok atau kalkulator profit/HPP.
+
+PENTING UNTUK PENCOCOKAN KATALOG:
+- Jika user bertanya tentang KATEGORI (contoh: "buka kategori baju jadi"), gunakan "CHECK_STOCK" dengan keyword "baju jadi".
+- Jika konteks percakapan di atas berisi daftar bernomor (contoh: "1. Kaos", "2. Baju"), lalu user merujuk pada "barang ke-2", "yang kedua", atau variannya, terjemahkan referensi indeks itu menjadi nama barang yang sebenarnya berdasarkan urutan di Konteks! 
+- JANGAN PERNAH menebak SKU jika pesanan user menyebutkan VARIANT (seperti ukuran XL/L atau jenis kain) yang TIDAK ADA namanya secara persis di KATALOG.
+- Konteks produk terakhir yang dibahas: "${lastProductName || 'Belum ada'}"
+- Jika user pesan "Kaos ukuran XL" namun di katalog hanya ada "M", DILARANG menggunakan SKU "M". Gunakan "CHAT" untuk menolak!
+- Wajib cocok 100% jika itu tindakan manipulasi stok.
+
+CONTOH:
+Konteks: "assistant: ... 1. Ganci 2. Kaos Skizo"
+User: "kategori dari barang yang ke 2" -> {"action":"CHAT", "kategori_dari": "Kaos Skizo"}
+User: "tambah dtf skizo putih" -> {"action":"CREATE_PRODUCT","name":"DTF Skizo Putih","category":"dtf","qty":0}
+User: "tambah stok kaos hitam 10" -> {"action":"ADD_STOCK","sku":"KAOS-HITAM","qty":10}
+User: "tambah 5" (bila konteks produk terakhir "Kaos Polos Hitam XL") -> {"action":"ADD_STOCK","sku":"Kaos Polos Hitam XL","qty":5}
+User: "ubah nama dtf skizo jadi dtf skizo hitam" -> {"action":"UPDATE_PRODUCT_NAME","sku":"SKIZO", "newName":"DTF Skizo Hitam"}
+User: "cek stok kaos hitam" -> {"action":"CHECK_STOCK","keyword":"kaos hitam"}
+User: "buka kategori baju jadi" -> {"action":"CHECK_STOCK","keyword":"baju jadi"}
+User: "tambah stok kaos hitam XL 2" (padahal ga ada XL) -> {"action":"CHAT"}
+
+KATALOG:
+${catalogStr}
+
+KONTEKS: ${ctxStr}
+USER: "${userText}"`;
+    
+    const completion = await groq.chat.completions.create({
+      messages: [{ role: 'system', content: systemContent }],
+      model: 'llama-3.1-8b-instant',
+      temperature: 0.1,
+      response_format: { type: 'json_object' }
+    });
+    return JSON.parse(completion.choices[0]?.message?.content || '{"action":"CHAT"}');
+  } catch {
+    return null;
+  }
+}
+
 export async function parseAndExecuteAIAction(text: string, source: 'web' | 'telegram', contextMessages: any[] = []) {
   try {
     const allProducts = await db.select().from(products);
@@ -289,6 +348,47 @@ export async function executeStockActionDirectly(intent: any, source: 'web' | 't
   try {
     const allProducts = await db.select().from(products);
 
+    // ==================== CHECK_STOCK ====================
+    if (intent.action === 'CHECK_STOCK') {
+      const keyword = (intent.keyword || '').toLowerCase().trim();
+      if (!keyword) return { message: `📦 Silakan masukkan nama barang yang ingin dicari.` };
+      
+      const allCategories = await db.select().from(categories);
+      const keywords = keyword.split(/\s+/).filter((k: string) => k.length > 0);
+      
+      const matchedProducts = allProducts.filter(p => {
+        const nameLower = p.name.toLowerCase();
+        const skuLower = p.sku.toLowerCase();
+        const cat = allCategories.find(c => c.id === p.categoryId);
+        const catNameLower = cat ? cat.name.toLowerCase() : '';
+        return keywords.every((k: string) => nameLower.includes(k) || skuLower.includes(k) || catNameLower.includes(k));
+      });
+      
+      if (matchedProducts.length === 0) {
+        const { fuzzyScore } = await import('@/lib/smart-ai'); // light import for fuzzy match
+        const fuzzy = allProducts.map(p => ({ item: p, score: fuzzyScore(keyword, p.name) })).sort((a,b)=>b.score - a.score);
+        const good = fuzzy.filter(f => f.score >= 0.4).slice(0, 3);
+        if (good.length > 0) {
+          let msg = `❌ Stok "${keyword}" tidak ditemukan persis.\n\n💡 *Mungkin maksud Anda:*\n\n`;
+          good.forEach((f, i) => { msg += `${i + 1}. *${f.item.name}*: *${f.item.currentStock}* pcs\n`; });
+          return { message: msg };
+        } else {
+          return { message: `❌ Tidak ditemukan stok untuk "${keyword}".` };
+        }
+      }
+      
+      let replyStr = `📦 *Cek Stok: ${keyword.toUpperCase()}*\n\n`;
+      let totalStock = 0;
+      for (const p of matchedProducts) {
+        let emoji = p.currentStock <= p.minStock ? '🔴' : '✅';
+        replyStr += `${emoji} ${p.name}: *${p.currentStock}* ${p.unit}\n`;
+        totalStock += p.currentStock;
+      }
+      replyStr += `\n📊 Total: *${totalStock}* pcs dari *${matchedProducts.length}* varian.`;
+      return { message: replyStr };
+    }
+
+    // ==================== AKSI SINGLE PRODUK (DEDUCT, ADD, UPDATE) ====================
     let p;
     if (intent.productId) {
        p = allProducts.find(x => x.id === intent.productId);

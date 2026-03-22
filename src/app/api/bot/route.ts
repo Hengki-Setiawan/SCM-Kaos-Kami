@@ -5,6 +5,7 @@ import { desc, eq, sql, lte, gte, and } from 'drizzle-orm';
 import { Groq } from 'groq-sdk';
 import { session, Context, SessionFlavor } from 'grammy';
 import { getTursoAdapter, BotSessionData } from '@/lib/turso-session';
+import { parseAIIntent, executeStockActionDirectly } from '@/lib/ai-actions';
 import { v4 as uuidv4 } from 'uuid';
 
 type MyContext = Context & SessionFlavor<BotSessionData>;
@@ -162,7 +163,7 @@ async function renderCategoryMenu(ctx: any, isEdit = false) {
   }
 }
 
-bot.hears(['📦 Cek Stok', 'Cek Stok'], async (ctx) => {
+bot.hears(['📦 Cek Stok', 'Cek Stok', '/stock', 'stok', 'Stok'], async (ctx) => {
   await renderCategoryMenu(ctx, false);
 });
 
@@ -962,12 +963,10 @@ bot.on('message:text', async (ctx) => {
     if (session.contextMessages.length > 5) session.contextMessages.shift();
 
     // 1. Cek Multi-Intent (Batch Operations)
-    const { detectMultiIntent } = await import('@/lib/smart-ai');
     const multiIntents = detectMultiIntent(text);
     
     // Jika lebih dari 1 aksi terdeteksi, lakukan Batch Operation
     if (multiIntents.length > 1 && !text.toLowerCase().includes('buat pesanan')) {
-      const { executeStockActionDirectly } = await import('@/lib/ai-actions');
       let summary = '📦 *Eksekusi Massal (Batch Operations):*\n\n';
       let successCount = 0;
       
@@ -1023,17 +1022,22 @@ bot.on('message:text', async (ctx) => {
     if (actionIntent && actionIntent.action === 'CHECK_STOCK') {
       const keyword = (actionIntent.keyword || '').toLowerCase().trim();
       const allProducts = await db.select().from(products);
+      const allCategories = await db.select().from(categories);
       
       if (!keyword) {
         await ctx.reply(`📦 Silakan masukkan nama barang yang ingin dicari.`);
         return;
       }
       
+      // NATIVE CHECK STOCK
       const keywords = keyword.split(/\s+/).filter((k: string) => k.length > 0);
       const matchedProducts = allProducts.filter(p => {
         const nameLower = p.name.toLowerCase();
         const skuLower = p.sku.toLowerCase();
-        return keywords.every((k: string) => nameLower.includes(k) || skuLower.includes(k));
+        const cat = allCategories.find(c => c.id === p.categoryId);
+        const catNameLower = cat ? cat.name.toLowerCase() : '';
+        
+        return keywords.every((k: string) => nameLower.includes(k) || skuLower.includes(k) || catNameLower.includes(k));
       });
       
       if (matchedProducts.length === 0) {
@@ -1045,8 +1049,13 @@ bot.on('message:text', async (ctx) => {
           good.forEach((f, i) => {
             msg += `${i + 1}. *${f.item.name}*: *${f.item.currentStock}* pcs\n`;
           });
+          
+          session.contextMessages.push({ role: 'assistant', content: msg.replace(/\*/g, '') });
+          if (session.contextMessages.length > 5) session.contextMessages.shift();
+          
           await ctx.reply(msg, { parse_mode: 'Markdown', reply_markup: followUpStock });
         } else {
+          session.contextMessages.push({ role: 'assistant', content: `Tidak ada stok untuk "${keyword}".` });
           await ctx.reply(`❌ Tidak ditemukan stok untuk "${keyword}".\n\nJika ingin menambah varian baru, gunakan perintah *"tambah produk ${keyword}"*.`, { parse_mode: 'Markdown' });
         }
         return;
@@ -1067,8 +1076,10 @@ bot.on('message:text', async (ctx) => {
         session.lastProductName = matchedProducts[0].name;
       }
       
+      session.contextMessages.push({ role: 'assistant', content: replyStr.replace(/\*/g, '') });
+      if (session.contextMessages.length > 5) session.contextMessages.shift();
+      
       await ctx.reply(replyStr, { parse_mode: 'Markdown', reply_markup: followUpStock });
-      session.contextMessages = []; // Bersihkan konteks agar tidak stuck di tanya stok
       return;
     }
 
@@ -1130,8 +1141,11 @@ bot.on('message:text', async (ctx) => {
       return;
     }
 
-    if (actionIntent && actionIntent.action !== 'CHAT' && actionIntent.action !== 'CREATE_PRODUCT') {
-      // Tampilkan KONFIRMASI, jangan langsung eksekusi
+    const isNonProductAction = NON_PRODUCT_ACTIONS.includes(actionIntent.action);
+    const isCheckStock = actionIntent.action === 'CHECK_STOCK';
+
+    if (actionIntent && actionIntent.action !== 'CHAT' && !isNonProductAction && !isCheckStock) {
+      // Tampilkan KONFIRMASI, jangan langsung eksekusi (UNTUK ADD/DEDUCT/UPDATE)
       if (!actionIntent.sku) {
         await ctx.reply(`❌ Cek kembali kalimat Anda. Pastikan menyebutkan nama barang yang sesuai di katalog.`, { reply_markup: mainMenu });
         session.contextMessages = [];
@@ -1246,7 +1260,6 @@ bot.callbackQuery('confirm_action', async (ctx) => {
       return;
     }
 
-    const { executeStockActionDirectly } = await import('@/lib/ai-actions');
     const result = await executeStockActionDirectly(action, 'telegram', session.contextMessages);
     session.pendingAction = undefined;
 
@@ -1321,59 +1334,7 @@ bot.callbackQuery(/^undo_(.+)$/, async (ctx) => {
   }
 });
 
-// ==================== AI INTENT PARSER (Lightweight) ====================
-async function parseAIIntent(text: string, contextMessages: {role: string, content: string}[] = [], lastProductName?: string) {
-  try {
-    const allProd = await db.select({ sku: products.sku, name: products.name }).from(products);
-    const catalogStr = allProd.map(p => `[SKU: ${p.sku}] ${p.name}`).join('\\n');
-    let ctxStr = contextMessages.map(m => `${m.role}: ${m.content}`).join('\\n');
-    
-    // Auto-inject context if user says e.g "tambah 5"
-    let userText = text;
-    if (lastProductName && (text.toLowerCase().match(/^(tambah|kurangi|beli|jual|pesan|kirim|masukin)\s*\d+$/))) {
-       userText = `${text} ${lastProductName}`;
-    }
-
-    const systemContent = `ASISTEN GUDANG STRUKTUR: KELUARKAN HANYA JSON.
-DAFTAR ACTION:
-- "CREATE_PRODUCT": Untuk "tambah barang baru", "tambah jenis", "tambah varian". Wajib kategori.
-- "UPDATE_PRODUCT_NAME": Ubah atau ganti nama barang (wajib "sku" lama dari katalog, "newName").
-- "ADD_STOCK"/"DEDUCT_STOCK": Update stok produk yang sudah ada di katalog.
-- "DELETE_PRODUCTS_BULK": Hapus banyak barang (butuh keyword).
-- "CHECK_STOCK": Jika user hanya ingin mengecek stok barang tertentu (wajib "keyword").
-- "CHAT": Sapaan santai.
-
-PENTING UNTUK PENCOCOKAN KATALOG:
-- JANGAN PERNAH menebak SKU jika pesanan user menyebutkan VARIANT (seperti ukuran XL/L atau jenis kain) yang TIDAK ADA namanya secara persis di KATALOG.
-- Konteks produk terakhir yang dibahas: "${lastProductName || 'Belum ada'}"
-- Jika user pesan "Kaos ukuran XL" namun di katalog hanya ada "M", DILARANG menggunakan SKU "M". Gunakan "CHAT" untuk menolak!
-- Wajib cocok 100% jika itu tindakan manipulasi stok.
-
-CONTOH:
-User: "tambah dtf skizo putih" -> {"action":"CREATE_PRODUCT","name":"DTF Skizo Putih","category":"dtf","qty":0}
-User: "tambah stok kaos hitam 10" -> {"action":"ADD_STOCK","sku":"KAOS-HITAM","qty":10}
-User: "tambah 5" (bila konteks produk terakhir "Kaos Polos Hitam XL") -> {"action":"ADD_STOCK","sku":"Kaos Polos Hitam XL","qty":5}
-User: "ubah nama dtf skizo jadi dtf skizo hitam" -> {"action":"UPDATE_PRODUCT_NAME","sku":"SKIZO", "newName":"DTF Skizo Hitam"}
-User: "cek stok kaos hitam" -> {"action":"CHECK_STOCK","keyword":"kaos hitam"}
-User: "tambah stok kaos hitam XL 2" (padahal ga ada XL) -> {"action":"CHAT"}
-
-KATALOG:
-${catalogStr}
-
-KONTEKS: ${ctxStr}
-USER: "${userText}"`;
-    
-    const completion = await groq.chat.completions.create({
-      messages: [{ role: 'system', content: systemContent }],
-      model: 'llama-3.1-8b-instant',
-      temperature: 0.1,
-      response_format: { type: 'json_object' }
-    });
-    return JSON.parse(completion.choices[0]?.message?.content || '{"action":"CHAT"}');
-  } catch {
-    return null;
-  }
-}
+// Extracted parseAIIntent to ai-actions.ts
 
 // ==================== /help COMMAND ====================
 bot.command('help', async (ctx) => {
