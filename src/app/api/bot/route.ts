@@ -824,7 +824,7 @@ bot.on('message:text', async (ctx) => {
 
     const chatReply = await groq.chat.completions.create({
       messages: [
-        { role: 'system', content: `Anda adalah "Kaos Kami Bot" di Telegram. Jawab SINGKAT dan PADAT (maks 8 baris). Gunakan emoji. Jika user bertanya stok, cari datanya di list ini: ${JSON.stringify(allStockData)}. Berikan jawaban natural.` },
+        { role: 'system', content: `Anda adalah "Kaos Kami Bot" di Telegram. Jawab SINGKAT. PENTING: Anda HANYA MENJAWAB pertanyaan stok atau ngobrol. Anda TIDAK BISA menambah/menghapus barang. Jika user ingin menambah barang, beri tahu mereka gunakan kalimat perintah jelas seperti "tambah produk [nama]". List stok: ${JSON.stringify(allStockData)}` },
         ...session.contextMessages
       ],
       model: 'llama-3.1-8b-instant',
@@ -968,7 +968,22 @@ async function parseAIIntent(text: string, contextMessages: {role: string, conte
     const catalogStr = allProd.map(p => `[SKU: ${p.sku}] ${p.name}`).join('\\n');
     let ctxStr = contextMessages.map(m => `${m.role}: ${m.content}`).join('\\n');
     
-    const systemContent = `ASISTEN GUDANG SUPER: HANYA KELUARKAN JSON. DILARANG CHAT.\\n\\nDAFTAR AKSI:\\n- "CREATE_PRODUCT": Gunakan ini jika user ingin "tambah barang baru", "tambah jenis baru", "tambah varian baru". Butuh: {name, category, sku, qty}.\\n- "DELETE_PRODUCTS_BULK": Gunakan ini jika user ingin "hapus semua/banyak barang" (butuh keyword).\\n- "ADD_STOCK"/"DEDUCT_STOCK": Untuk ganti stok barang YANG SUDAH ADA (butuh sku, qty).\\n- "CREATE_ORDER": Buka pesanan (butuh customerName, sku, qty).\\n- "CHAT": Hanya untuk sapaan atau tanya stok biasa.\\n\\nFORMAT JSON MUTLAK: {"action":"TIPE","sku":"...","name":"...","category":"...","qty":0,...}\\n\\nKATALOG GUDANG SAAT INI:\\n${catalogStr}\\n\\nKONTEKS: ${ctxStr}\\n\\nUSER: "${text}"`;
+    const systemContent = `ASISTEN GUDANG STRUKTUR: KELUARKAN HANYA JSON.
+DAFTAR ACTION:
+- "CREATE_PRODUCT": Untuk "tambah barang baru", "tambah jenis", "tambah varian". Wajib kategori.
+- "ADD_STOCK"/"DEDUCT_STOCK": Update stok produk yang sudah ada di katalog.
+- "DELETE_PRODUCTS_BULK": Hapus banyak barang (butuh keyword).
+- "CHAT": Sapaan atau tanya stok.
+
+CONTOH:
+User: "tambah dtf skizo putih" -> {"action":"CREATE_PRODUCT","name":"DTF Skizo Putih","category":"dtf","qty":0}
+User: "tambah stok kaos hitam 10" -> {"action":"ADD_STOCK","sku":"KAOS-HITAM","qty":10}
+
+KATALOG:
+${catalogStr}
+
+KONTEKS: ${ctxStr}
+USER: "${text}"`;
     
     const completion = await groq.chat.completions.create({
       messages: [{ role: 'system', content: systemContent }],
