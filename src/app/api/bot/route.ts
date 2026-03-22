@@ -811,15 +811,21 @@ bot.on('message:text', async (ctx) => {
 
     if (actionIntent && actionIntent.action !== 'CHAT' && actionIntent.action !== 'CREATE_PRODUCT') {
       // Tampilkan KONFIRMASI, jangan langsung eksekusi
+      if (!actionIntent.sku) {
+        await ctx.reply(`❌ Cek kembali kalimat Anda. Pastikan menyebutkan nama barang yang sesuai di katalog.`, { reply_markup: mainMenu });
+        session.contextMessages = [];
+        return;
+      }
+      
       const allProducts = await db.select().from(products);
-      const searchSku = (actionIntent.sku || '').toLowerCase();
+      const searchSku = actionIntent.sku.toLowerCase();
       const p = allProducts.find(x => 
         x.sku.toLowerCase().includes(searchSku) || 
         x.name.toLowerCase().includes(searchSku)
       );
       
       if (!p) {
-        await ctx.reply(`❌ Produk "${actionIntent.sku}" tidak ditemukan.`, { reply_markup: mainMenu });
+        await ctx.reply(`❌ Produk dengan kata kunci "${actionIntent.sku}" tidak ditemukan di database.`, { reply_markup: mainMenu });
         session.contextMessages = []; // Mencegah LLM stuck pada intent ini di pesan berikutnya
         return;
       }

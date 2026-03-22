@@ -289,15 +289,20 @@ export async function executeStockActionDirectly(intent: any, source: 'web' | 't
   try {
     const allProducts = await db.select().from(products);
 
-    const p = allProducts.find(x => 
-      x.sku.toLowerCase() === intent.sku.toLowerCase() || 
-      x.name.toLowerCase() === intent.sku.toLowerCase() ||
-      x.sku.toLowerCase().includes(intent.sku.toLowerCase()) || 
-      x.name.toLowerCase().includes(intent.sku.toLowerCase())
-    );
+    let p;
+    if (intent.productId) {
+       p = allProducts.find(x => x.id === intent.productId);
+    } else if (intent.sku) {
+       p = allProducts.find(x => 
+         x.sku.toLowerCase() === intent.sku.toLowerCase() || 
+         x.name.toLowerCase() === intent.sku.toLowerCase() ||
+         x.sku.toLowerCase().includes(intent.sku.toLowerCase()) || 
+         x.name.toLowerCase().includes(intent.sku.toLowerCase())
+       );
+    }
 
     if (!p) {
-      return { message: `❌ Gagal mengeksekusi aksi. Produk yang mirip dengan '${intent.sku}' tidak ditemukan.` };
+      return { message: `❌ Gagal mengeksekusi aksi. Produk${intent.sku ? ` yang mirip dengan '${intent.sku}'` : ''} tidak ditemukan.` };
     }
 
     let summary = `✅ Berhasil eksekusi perintah!\n*Produk Utama:* ${p.name}\n`;
