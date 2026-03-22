@@ -1,11 +1,13 @@
-import { db } from './src/db';
-import { products, categories, telegramSessions } from './src/db/schema';
-import { desc } from 'drizzle-orm';
 import * as dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
 
+import { db } from './src/db';
+import { products, categories, telegramSessions } from './src/db/schema';
+import { desc } from 'drizzle-orm';
+
 async function run() {
   try {
+    console.log("Database URL:", process.env.TURSO_DATABASE_URL ? "Defined" : "Undefined");
     const prods = await db.select().from(products).orderBy(desc(products.createdAt)).limit(5);
     console.log("=== Recent Products ===");
     console.log(prods.map(p => `${p.name} (SKU: ${p.sku}, CatID: ${p.categoryId}, Stock: ${p.currentStock})`));
