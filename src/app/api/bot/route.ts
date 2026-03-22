@@ -740,6 +740,8 @@ bot.on('message:text', async (ctx) => {
         
         session.pendingAction = { ...actionIntent, keyword, count: matchedProducts.length };
         preview = `🗑️ *Hapus Massal Produk*\n\n🔥 Aksi: Menghapus *${matchedProducts.length}* produk yang mengandung kata *"${keyword}"* dari database beserta seluruh riwayat stoknya.\n\n⚠️ PERINGATAN BEMBAHAYA: Tindakan ini permanen!`;
+      } else if (actionIntent.action === 'CREATE_PRODUCT') {
+        preview = `📦 *Tambah Produk Baru*\n\nNama: *${actionIntent.name}*\n📁 Kategori: *${actionIntent.category}*\n🔢 Stok Awal: *${actionIntent.qty || 0}*\n\n_Pastikan kategori sudah terdaftar._`;
       } else if (actionIntent.action === 'CREATE_CATEGORY') {
         preview = `📁 *Tambah Kategori Baru*\n\n${actionIntent.icon || '📦'} Nama: *${actionIntent.name}*`;
       } else if (actionIntent.action === 'DELETE_CATEGORY') {
@@ -866,7 +868,7 @@ bot.callbackQuery('confirm_action', async (ctx) => {
     }
 
     // === NON-PRODUCT CRUD ACTIONS ===
-    const NON_PRODUCT_ACTIONS = ['CREATE_CATEGORY', 'DELETE_CATEGORY', 'CREATE_SUPPLIER', 'DELETE_SUPPLIER', 'CREATE_ORDER', 'DELETE_ORDER', 'UPDATE_ORDER_STATUS', 'DELETE_PRODUCTS_BULK'];
+    const NON_PRODUCT_ACTIONS = ['CREATE_CATEGORY', 'DELETE_CATEGORY', 'CREATE_SUPPLIER', 'DELETE_SUPPLIER', 'CREATE_ORDER', 'DELETE_ORDER', 'UPDATE_ORDER_STATUS', 'DELETE_PRODUCTS_BULK', 'CREATE_PRODUCT'];
     if (NON_PRODUCT_ACTIONS.includes(action.action)) {
       const { executeNonProductAction } = await import('@/lib/ai-actions');
       const result = await executeNonProductAction(action);
@@ -966,7 +968,7 @@ async function parseAIIntent(text: string, contextMessages: {role: string, conte
     const catalogStr = allProd.map(p => `[SKU: ${p.sku}] ${p.name}`).join('\\n');
     let ctxStr = contextMessages.map(m => `${m.role}: ${m.content}`).join('\\n');
     
-    const systemContent = `Anda menganalisis pesan dan return JSON. Anda adalah SUPER ADMIN BOT — bisa melakukan SEMUA operasi CRUD pada seluruh database.\\nPENTING: Untuk perintah ganti stok, pastikan mengembalikan 'UPDATE_STOCK' dengan qty berisi angka tersebut.\\n\\nActions GUDANG (butuh "sku"): "PROCESS_ORDER","DEDUCT_STOCK","ADD_STOCK","UPDATE_STOCK","DELETE_PRODUCT".\\nActions GUDANG MASSAL (hapus banyak barang sekaligus berdasarkan merk/tipe, butuh "keyword"): "DELETE_PRODUCTS_BULK".\\nActions PESANAN (butuh "orderNumber","customerName","sku","qty","platform","newStatus"): "CREATE_ORDER","DELETE_ORDER","UPDATE_ORDER_STATUS".\\nActions KATEGORI (butuh "name","icon"): "CREATE_CATEGORY","DELETE_CATEGORY".\\nActions SUPPLIER (butuh "name","phone"): "CREATE_SUPPLIER","DELETE_SUPPLIER".\\nActions BIAYA: "LOG_EXPENSE" (butuh "title","category","qty" as Rp).\\nActions LAINNYA: "CHAT" (WAJIB kembalikan ini jika pesan hanya sapaan "hai" atau obrolan biasa).\\n\\nFormat JSON: {"action":"TIPE","sku":"namasku","keyword":"kata kunci","qty":angka,"title":"...","category":"...","name":"...","icon":"...","phone":"...","orderNumber":"...","customerName":"...","platform":"...","newStatus":"..."}.\\n\\n⚡ PENTING: Jika menghapus BANYAK/SEMUA jenis barang (contoh: "hapus semua jenis kaos hitam"), gunakan action DELETE_PRODUCTS_BULK dengan keyword "kaos hitam". Jika hanya gudang biasa, cocokkan dg KATALOG INI:\\n${catalogStr}\\n\\nKonteks Sebelumnya: \\n${ctxStr}\\n\\nPesan Saat Ini: "${text}"`;
+    const systemContent = `Anda menganalisis pesan dan return JSON. Anda adalah SUPER ADMIN BOT — bisa melakukan SEMUA operasi CRUD pada seluruh database.\\nPENTING: Untuk perintah ganti stok, pastikan mengembalikan 'UPDATE_STOCK' dengan qty berisi angka tersebut.\\n\\nActions GUDANG (butuh "sku"): "PROCESS_ORDER","DEDUCT_STOCK","ADD_STOCK","UPDATE_STOCK","DELETE_PRODUCT".\\nActions GUDANG BARU (butuh "name","category","sku","qty"): "CREATE_PRODUCT".\\nActions GUDANG MASSAL (hapus banyak barang sekaligus berdasarkan merk/tipe, butuh "keyword"): "DELETE_PRODUCTS_BULK".\\nActions PESANAN (butuh "orderNumber","customerName","sku","qty","platform","newStatus"): "CREATE_ORDER","DELETE_ORDER","UPDATE_ORDER_STATUS".\\nActions KATEGORI (butuh "name","icon"): "CREATE_CATEGORY","DELETE_CATEGORY".\\nActions SUPPLIER (butuh "name","phone"): "CREATE_SUPPLIER","DELETE_SUPPLIER".\\nActions BIAYA: "LOG_EXPENSE" (butuh "title","category","qty" as Rp).\\nActions LAINNYA: "CHAT" (WAJIB kembalikan ini jika pesan hanya sapaan "hai" atau obrolan biasa).\\n\\nFormat JSON: {"action":"TIPE","sku":"namasku","keyword":"kata kunci","qty":angka,"title":"...","category":"...","name":"...","icon":"...","phone":"...","orderNumber":"...","customerName":"...","platform":"...","newStatus":"..."}.\\n\\n⚡ PENTING: Untuk "tambah jenis/produk baru" (contoh: "tambah dtf skizo hitam"), gunakan CREATE_PRODUCT dengan category yang sesuai (misal: "dtf"). Jika menghapus BANYAK/SEMUA jenis barang, gunakan DELETE_PRODUCTS_BULK. Jika gudang biasa, cocokkan dg KATALOG INI:\\n${catalogStr}\\n\\nKonteks Sebelumnya: \\n${ctxStr}\\n\\nPesan Saat Ini: "${text}"`;
     
     const completion = await groq.chat.completions.create({
       messages: [{ role: 'system', content: systemContent }],

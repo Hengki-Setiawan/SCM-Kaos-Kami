@@ -23,6 +23,39 @@ export async function executeNonProductAction(action: any) {
       return { message: `✅ *Kategori Baru Ditambahkan!*\n\n${action.icon || '📦'} *${action.name}*\nSlug: \`${slug}\`` };
     }
 
+    if (action.action === 'CREATE_PRODUCT') {
+      const allCats = await db.select().from(categories);
+      const catName = (action.category || '').toLowerCase();
+      const cat = allCats.find(c => 
+        c.name.toLowerCase().includes(catName) || 
+        c.slug.toLowerCase().includes(catName)
+      );
+      
+      if (!cat) return { message: `❌ Kategori "${action.category}" tidak ditemukan. Silakan buat kategorinya dulu.` };
+
+      const name = action.name || 'Produk Baru';
+      // Generate SKU if missing
+      const sku = (action.sku || name.toUpperCase().replace(/\s+/g, '-').replace(/[^A-Z0-9-]/g, '')).slice(0, 20);
+      
+      const [existing] = await db.select().from(products).where(eq(products.sku, sku));
+      if (existing) return { message: `❌ Produk dengan SKU \`${sku}\` sudah ada (${existing.name}).` };
+
+      await db.insert(products).values({
+        id: uuidv4(),
+        categoryId: cat.id,
+        name: name,
+        sku: sku,
+        unit: action.unit || 'pcs',
+        unitPrice: action.unitPrice || 0,
+        buyPrice: action.buyPrice || 0,
+        currentStock: action.qty || 0,
+        minStock: 0,
+        isActive: true,
+      });
+
+      return { message: `✅ *Produk Berhasil Ditambahkan!*\n\n📦 *${name}*\nSKU: \`${sku}\`\n📁 Kategori: *${cat.name}*\n🔢 Stok Awal: *${action.qty || 0}*` };
+    }
+
     if (action.action === 'DELETE_CATEGORY') {
       const allCats = await db.select().from(categories);
       const cat = allCats.find(c =>
