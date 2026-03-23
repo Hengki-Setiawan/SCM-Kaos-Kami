@@ -387,7 +387,15 @@ export default function StockTableClient({ initialProducts, categories }: { init
                                   min="0"
                                   onBlur={(e) => handleStockChange(product.id, parseInt(e.target.value) || 0, product.currentStock)}
                                 />
-                                <span className="text-xs text-muted">/ min: {product.minStock}</span>
+                                 <span className="text-xs text-muted">/ min:</span>
+                                 <input 
+                                    type="number" 
+                                    defaultValue={product.minStock}
+                                    className="input-field"
+                                    style={{ width: '60px', padding: '0.25rem 0.4rem', fontSize: '0.8rem', marginLeft: '4px' }}
+                                    min="0"
+                                    onBlur={(e) => handleMinStockChange(product.id, parseInt(e.target.value) || 0, product.minStock)}
+                                  />
                              </div>
                           </td>
                           <td style={{ padding: '0.65rem 1rem' }}>
@@ -469,7 +477,10 @@ export default function StockTableClient({ initialProducts, categories }: { init
                              <input type="number" defaultValue={product.currentStock} className="input-field" 
                                style={{ padding: '0.4rem', width: '60px', height: '32px' }}
                                onBlur={(e) => handleStockChange(product.id, parseInt(e.target.value) || 0, product.currentStock)} />
-                             <span className="text-xs text-muted">/ {product.minStock}</span>
+                             <span className="text-xs text-muted">/ min:</span>
+                             <input type="number" defaultValue={product.minStock} className="input-field" 
+                               style={{ padding: '0.4rem', width: '50px', height: '32px', marginLeft: '4px' }}
+                               onBlur={(e) => handleMinStockChange(product.id, parseInt(e.target.value) || 0, product.minStock)} />
                            </div>
                            <div className="flex gap-1">
                              <Link href={`/stock/${product.id}`} className="btn-ghost" style={{ padding: 4 }}>👁️</Link>

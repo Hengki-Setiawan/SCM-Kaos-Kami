@@ -170,6 +170,10 @@ export default function ProductDetailClient({ initialProduct, categories, histor
               <label className="text-xs text-muted">Tipe Lengan</label>
               <input type="text" className="input-field" value={product.sleeveType || ''} onChange={e => handleUpdateField('sleeveType', e.target.value)} disabled={!isEditing} />
             </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-muted">Minimum Stok (Threshold)</label>
+              <input type="number" className="input-field" value={product.minStock || 0} onChange={e => handleUpdateField('minStock', Number(e.target.value))} disabled={!isEditing} />
+            </div>
           </div>
           
           <div className="border-t border-[rgba(var(--border),0.5)] mt-6 pt-6 product-spec-grid">
