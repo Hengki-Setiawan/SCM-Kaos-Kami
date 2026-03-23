@@ -4,14 +4,19 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { generateProductVariants } from '@/app/actions/product';
 import { useToast } from '@/components/Toast';
-import { X, Plus, Trash2, Zap, Layers, Sparkles } from 'lucide-react';
+import { X, Plus, Zap, Layers } from 'lucide-react';
+
+/* =============================================
+   Smart Variant Generator — Modal Component
+   Uses createPortal to escape parent stacking context.
+   All styles are inline or use globals.css classes.
+   ============================================= */
 
 export default function VariantGenerator({ categories, onClose }: { categories: any[]; onClose: () => void }) {
   const { showToast } = useToast();
   const [mounted, setMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isClosing, setIsClosing] = useState(false);
-  
+
   const [template, setTemplate] = useState({
     name: '',
     sku: '',
@@ -27,299 +32,444 @@ export default function VariantGenerator({ categories, onClose }: { categories: 
 
   const [sizes, setSizes] = useState(['S', 'M', 'L', 'XL']);
   const [newSize, setNewSize] = useState('');
-  
+
   const [colors, setColors] = useState(['Hitam', 'Putih']);
   const [newColor, setNewColor] = useState('');
 
+  // Mount guard for createPortal (needs DOM)
   useEffect(() => {
     setMounted(true);
-    // Add escape key listener
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') handleClose();
+    document.body.style.overflow = 'hidden'; // lock body scroll
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = '';
+      window.removeEventListener('keydown', onKey);
     };
-    window.addEventListener('keydown', handleEsc);
-    return () => window.removeEventListener('keydown', handleEsc);
   }, []);
 
-  const handleClose = () => {
-    setIsClosing(true);
-    setTimeout(onClose, 300); // Wait for animation
-  };
-
+  /* ---------- handlers ---------- */
   const handleAddSize = () => {
-    if (newSize.trim() && !sizes.includes(newSize.trim().toUpperCase())) {
-      setSizes([...sizes, newSize.trim().toUpperCase()]);
-      setNewSize('');
-    }
+    const val = newSize.trim().toUpperCase();
+    if (val && !sizes.includes(val)) { setSizes([...sizes, val]); setNewSize(''); }
   };
-
   const handleAddColor = () => {
-    if (newColor.trim() && !colors.includes(newColor.trim())) {
-      // capitalize first letter for consistency
-      const formattedColor = newColor.trim().charAt(0).toUpperCase() + newColor.trim().slice(1);
-      setColors([...colors, formattedColor]);
-      setNewColor('');
-    }
+    const val = newColor.trim();
+    const formatted = val.charAt(0).toUpperCase() + val.slice(1);
+    if (formatted && !colors.includes(formatted)) { setColors([...colors, formatted]); setNewColor(''); }
   };
-
   const handleRemoveSize = (s: string) => setSizes(sizes.filter(x => x !== s));
   const handleRemoveColor = (c: string) => setColors(colors.filter(x => x !== c));
 
   const handleGenerate = async () => {
-    if (!template.name || !template.sku) {
-      showToast('Nama dan Base SKU wajib diisi', 'error');
-      return;
-    }
-    if (sizes.length === 0 && colors.length === 0) {
-      showToast('Pilih setidaknya satu ukuran atau warna', 'error');
-      return;
-    }
-
+    if (!template.name || !template.sku) { showToast('Nama dan Base SKU wajib diisi', 'error'); return; }
+    if (sizes.length === 0 && colors.length === 0) { showToast('Pilih setidaknya satu ukuran atau warna', 'error'); return; }
     setIsLoading(true);
     const res = await generateProductVariants(template, sizes, colors);
     setIsLoading(false);
-
-    if (res.success) {
-      showToast(`Berhasil membuat ${res.count} varian produk!`, 'success');
-      handleClose();
-    } else {
-      showToast(res.error || 'Gagal generate varian', 'error');
-    }
+    if (res.success) { showToast(`Berhasil membuat ${res.count} varian produk!`, 'success'); onClose(); }
+    else { showToast(res.error || 'Gagal generate varian', 'error'); }
   };
 
   if (!mounted) return null;
 
   const totalVariants = sizes.length * colors.length;
 
-  return createPortal(
-    <div 
-      className={`fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 transition-all duration-300 ${isClosing ? 'opacity-0' : 'opacity-100'}`}
-      style={{ backgroundColor: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) handleClose();
+  /* ============ shared inline style objects ============ */
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+    padding: '0.65rem 0.9rem',
+    borderRadius: '10px',
+    border: '1px solid rgba(var(--border), 0.7)',
+    background: 'rgba(var(--surface), 0.5)',
+    color: 'rgb(var(--foreground-rgb))',
+    fontFamily: 'inherit',
+    fontSize: '0.875rem',
+    outline: 'none',
+    transition: 'border-color 0.2s, box-shadow 0.2s',
+  };
+
+  const labelStyle: React.CSSProperties = {
+    display: 'block',
+    fontSize: '0.7rem',
+    fontWeight: 700,
+    color: 'rgb(var(--text-muted))',
+    marginBottom: '0.35rem',
+    textTransform: 'uppercase',
+    letterSpacing: '0.06em',
+  };
+
+  const tagBaseStyle: React.CSSProperties = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '0.35rem',
+    fontWeight: 600,
+    padding: '0.35rem 0.65rem',
+    borderRadius: '8px',
+    fontSize: '0.82rem',
+    transition: 'all 0.15s',
+    cursor: 'default',
+  };
+
+  const tagRemoveBtnStyle: React.CSSProperties = {
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    opacity: 0.55,
+    display: 'flex',
+    alignItems: 'center',
+    padding: '2px',
+    borderRadius: '4px',
+    transition: 'all 0.15s',
+    color: 'inherit',
+  };
+
+  /* ============ RENDER via Portal ============ */
+  const content = (
+    /* ---- Backdrop ---- */
+    <div
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 99999,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '1rem',
+        backgroundColor: 'rgba(15, 23, 42, 0.72)',
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
+        animation: 'svgFadeIn 0.25s ease-out',
       }}
     >
-      {/* Modal Container */}
-      <div 
-        className={`w-full relative flex flex-col shadow-2xl rounded-2xl overflow-hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 transition-all duration-300 transform ${isClosing ? 'scale-95 translate-y-4' : 'scale-100 translate-y-0'}`} 
-        style={{ maxWidth: '48rem', maxHeight: '90vh' }}
+      {/* ---- Modal Card ---- */}
+      <div
         onClick={(e) => e.stopPropagation()}
+        style={{
+          width: '100%',
+          maxWidth: '52rem',
+          maxHeight: '92vh',
+          display: 'flex',
+          flexDirection: 'column',
+          borderRadius: '18px',
+          background: 'rgb(var(--surface))',
+          boxShadow: '0 25px 60px -15px rgba(0,0,0,0.25), 0 0 0 1px rgba(var(--border), 0.25)',
+          overflow: 'hidden',
+          animation: 'svgSlideUp 0.3s ease-out',
+        }}
       >
-        {/* Header Ribbon */}
-        <div className="h-1.5 w-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
-        
-        {/* Header */}
-        <div className="flex justify-between items-center px-6 py-5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400">
-              <Sparkles size={20} className={totalVariants > 0 ? "animate-pulse" : ""} />
+        {/* ---- Gradient accent bar ---- */}
+        <div style={{ height: '4px', background: 'linear-gradient(90deg, rgb(var(--primary)), rgb(var(--accent)), #ec4899)' }} />
+
+        {/* ---- Header ---- */}
+        <div style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          padding: '1.25rem 1.5rem',
+          borderBottom: '1px solid rgba(var(--border), 0.4)',
+          background: 'rgba(var(--surface-hover), 0.35)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div style={{
+              width: '42px', height: '42px', borderRadius: '12px',
+              background: 'linear-gradient(135deg, rgba(var(--primary),0.12), rgba(var(--accent),0.12))',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: 'rgb(var(--primary))',
+            }}>
+              <Zap size={22} />
             </div>
             <div>
-              <h2 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400">
+              <h2 style={{
+                fontSize: '1.2rem', fontWeight: 800, margin: 0,
+                background: 'linear-gradient(135deg, rgb(var(--primary)), rgb(var(--accent)))',
+                WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+              }}>
                 Smart Variant Generator
               </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Buat ratusan varian SKU otomatis dalam hitungan detik.</p>
+              <p style={{ fontSize: '0.72rem', color: 'rgb(var(--text-muted))', margin: 0, marginTop: '2px' }}>
+                Buat banyak varian produk sekaligus dengan cepat.
+              </p>
             </div>
           </div>
-          <button 
-            onClick={handleClose} 
-            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 transition-colors"
+          <button
+            onClick={onClose}
+            style={{
+              width: '36px', height: '36px', borderRadius: '50%',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              border: 'none', background: 'rgba(var(--border), 0.2)',
+              color: 'rgb(var(--text-muted))', cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(var(--danger), 0.12)'; e.currentTarget.style.color = 'rgb(var(--danger))'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(var(--border), 0.2)'; e.currentTarget.style.color = 'rgb(var(--text-muted))'; }}
           >
             <X size={18} />
           </button>
         </div>
 
-        {/* Scrollable Content */}
-        <div className="overflow-y-auto flex-1 p-6 custom-scrollbar pb-8">
-          <div className="flex flex-col gap-8">
-            
-            {/* Section 1: Base Info */}
-            <section>
-              <h3 className="text-sm font-bold mb-4 flex items-center gap-2 text-slate-800 dark:text-slate-200">
-                <span className="flex items-center justify-center w-6 h-6 rounded-md bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 text-xs">📦</span> 
-                Informasi Dasar Master Produk
+        {/* ---- Scrollable Body ---- */}
+        <div style={{ overflowY: 'auto', flex: 1, padding: '1.5rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+
+            {/* ==== SECTION 1: Base Information ==== */}
+            <section style={{
+              padding: '1.25rem',
+              borderRadius: '14px',
+              border: '1px solid rgba(var(--border), 0.35)',
+              background: 'rgba(var(--surface-hover), 0.25)',
+            }}>
+              <h3 style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'rgb(var(--primary))' }}>
+                <span style={{ background: 'rgba(var(--primary), 0.1)', padding: '5px 8px', borderRadius: '8px', fontSize: '0.9rem' }}>📦</span>
+                Informasi Dasar
               </h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
-                <div className="md:col-span-2">
-                  <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-1.5 uppercase tracking-wider">Nama Dasar Produk</label>
-                  <input 
-                    type="text" 
-                    className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none" 
-                    placeholder="Contoh: Kaos Polos Premium"
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+                {/* Nama */}
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <label style={labelStyle}>Nama Dasar Produk</label>
+                  <input
+                    style={inputStyle}
+                    type="text"
+                    placeholder="Contoh: Kaos Kami Skizo"
                     value={template.name}
-                    onChange={e => setTemplate({...template, name: e.target.value})}
+                    onChange={e => setTemplate({ ...template, name: e.target.value })}
+                    onFocus={e => { e.currentTarget.style.borderColor = 'rgb(var(--primary))'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(var(--primary),0.1)'; }}
+                    onBlur={e => { e.currentTarget.style.borderColor = 'rgba(var(--border),0.7)'; e.currentTarget.style.boxShadow = 'none'; }}
                   />
-                  <p className="text-[10px] text-slate-400 mt-1.5 ml-1">Format hasil: [Nama Dasar] - [Warna] [Ukuran]</p>
                 </div>
-                
+                {/* SKU */}
                 <div>
-                  <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-1.5 uppercase tracking-wider">Base SKU (Prefiks)</label>
-                  <input 
-                    type="text" 
-                    className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none uppercase font-mono tracking-wide" 
-                    placeholder="CTH: KPS-PRM"
+                  <label style={labelStyle}>Base SKU (Prefiks)</label>
+                  <input
+                    style={{ ...inputStyle, textTransform: 'uppercase', fontFamily: 'ui-monospace, monospace', letterSpacing: '0.05em' }}
+                    type="text"
+                    placeholder="CTH: S-SKIZO"
                     value={template.sku}
-                    onChange={e => setTemplate({...template, sku: e.target.value.toUpperCase()})}
+                    onChange={e => setTemplate({ ...template, sku: e.target.value.toUpperCase() })}
+                    onFocus={e => { e.currentTarget.style.borderColor = 'rgb(var(--primary))'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(var(--primary),0.1)'; }}
+                    onBlur={e => { e.currentTarget.style.borderColor = 'rgba(var(--border),0.7)'; e.currentTarget.style.boxShadow = 'none'; }}
                   />
                 </div>
-                
+                {/* Kategori */}
                 <div>
-                  <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-1.5 uppercase tracking-wider">Kategori</label>
-                  <select 
-                    className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none appearance-none"
+                  <label style={labelStyle}>Kategori</label>
+                  <select
+                    style={{ ...inputStyle, cursor: 'pointer' }}
                     value={template.categoryId}
-                    onChange={e => setTemplate({...template, categoryId: e.target.value})}
-                    style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'%236b7280\'%3E%3Cpath stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M19 9l-7 7-7-7\'%3E%3C/path%3E%3C/svg%3E")', backgroundPosition: 'right 1rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.2em 1.2em' }}
+                    onChange={e => setTemplate({ ...template, categoryId: e.target.value })}
+                    onFocus={e => { e.currentTarget.style.borderColor = 'rgb(var(--primary))'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(var(--primary),0.1)'; }}
+                    onBlur={e => { e.currentTarget.style.borderColor = 'rgba(var(--border),0.7)'; e.currentTarget.style.boxShadow = 'none'; }}
                   >
                     {categories.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
                   </select>
                 </div>
-                
+                {/* Harga Beli */}
                 <div>
-                  <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-1.5 uppercase tracking-wider">Harga Beli / Modal (Rp)</label>
-                  <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium">Rp</span>
-                    <input 
-                      type="number" 
-                      className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none" 
-                      value={template.buyPrice || ''}
+                  <label style={labelStyle}>Harga Beli / Modal (Rp)</label>
+                  <div style={{ position: 'relative' }}>
+                    <span style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'rgb(var(--text-muted))', fontSize: '0.82rem', fontWeight: 500 }}>Rp</span>
+                    <input
+                      style={{ ...inputStyle, paddingLeft: '2.2rem' }}
+                      type="number"
                       placeholder="0"
-                      onChange={e => setTemplate({...template, buyPrice: Number(e.target.value)})}
+                      value={template.buyPrice || ''}
+                      onChange={e => setTemplate({ ...template, buyPrice: Number(e.target.value) })}
+                      onFocus={e => { e.currentTarget.style.borderColor = 'rgb(var(--primary))'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(var(--primary),0.1)'; }}
+                      onBlur={e => { e.currentTarget.style.borderColor = 'rgba(var(--border),0.7)'; e.currentTarget.style.boxShadow = 'none'; }}
                     />
                   </div>
                 </div>
-                
+                {/* Harga Jual */}
                 <div>
-                  <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-1.5 uppercase tracking-wider">Harga Jual Satuan (Rp)</label>
-                  <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium">Rp</span>
-                    <input 
-                      type="number" 
-                      className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none font-medium text-indigo-700 dark:text-indigo-400" 
-                      value={template.unitPrice || ''}
+                  <label style={labelStyle}>Harga Jual Satuan (Rp)</label>
+                  <div style={{ position: 'relative' }}>
+                    <span style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'rgb(var(--text-muted))', fontSize: '0.82rem', fontWeight: 500 }}>Rp</span>
+                    <input
+                      style={{ ...inputStyle, paddingLeft: '2.2rem' }}
+                      type="number"
                       placeholder="0"
-                      onChange={e => setTemplate({...template, unitPrice: Number(e.target.value)})}
+                      value={template.unitPrice || ''}
+                      onChange={e => setTemplate({ ...template, unitPrice: Number(e.target.value) })}
+                      onFocus={e => { e.currentTarget.style.borderColor = 'rgb(var(--primary))'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(var(--primary),0.1)'; }}
+                      onBlur={e => { e.currentTarget.style.borderColor = 'rgba(var(--border),0.7)'; e.currentTarget.style.boxShadow = 'none'; }}
                     />
                   </div>
                 </div>
               </div>
             </section>
 
-            {/* Section 2: Combinations */}
+            {/* ==== SECTION 2: Variant Combinations ==== */}
             <section>
-               <div className="flex items-center justify-between mb-4">
-                 <h3 className="text-sm font-bold flex items-center gap-2 text-slate-800 dark:text-slate-200">
-                  <span className="flex items-center justify-center w-6 h-6 rounded-md bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 text-xs">✨</span> 
-                  Matriks Kombinasi Varian
-                 </h3>
-                 <div className="px-3 py-1 flex items-center gap-1.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 rounded-full text-xs font-bold border border-indigo-100 dark:border-indigo-800/50">
-                    <Layers size={14} /> {totalVariants} Varian Dihasilkan
-                 </div>
-               </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <h3 style={{ fontSize: '0.85rem', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'rgb(var(--accent))' }}>
+                  <span style={{ background: 'rgba(var(--accent), 0.1)', padding: '5px 8px', borderRadius: '8px', fontSize: '0.9rem' }}>✨</span>
+                  Kombinasi Varian
+                </h3>
+                {totalVariants > 0 && (
+                  <span style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
+                    background: 'rgba(var(--primary), 0.08)', color: 'rgb(var(--primary))',
+                    fontWeight: 700, fontSize: '0.72rem',
+                    padding: '0.3rem 0.7rem', borderRadius: '20px',
+                    border: '1px solid rgba(var(--primary), 0.15)',
+                  }}>
+                    <Layers size={13} /> {totalVariants} Varian
+                  </span>
+                )}
+              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                
-                {/* Sizes Block */}
-                <div className="relative p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden group hover:border-indigo-300 dark:hover:border-indigo-700/50 transition-colors">
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-50 dark:bg-indigo-900/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900/20 transition-colors"></div>
-                  
-                  <label className="font-bold flex items-center justify-between text-sm mb-4 relative z-10">
-                    <span className="flex items-center gap-2 text-slate-700 dark:text-slate-300">📐 Ukuran (Size)</span>
-                    <span className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded text-xs font-bold">{sizes.length}</span>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+
+                {/* ---- SIZE BLOCK ---- */}
+                <div style={{
+                  padding: '1.25rem',
+                  borderRadius: '14px',
+                  border: '1px solid rgba(var(--border), 0.3)',
+                  background: 'rgba(var(--surface-hover), 0.2)',
+                  transition: 'border-color 0.2s',
+                }}>
+                  <label style={{ fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.75rem' }}>
+                    <span>📐 Ukuran (Size)</span>
+                    <span className="badge badge-primary">{sizes.length}</span>
                   </label>
-                  
-                  <div className="flex flex-wrap gap-2 mb-5 min-h-[44px] relative z-10 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-100 dark:border-slate-800/80">
-                    {sizes.length === 0 && <span className="text-xs text-slate-400 italic flex items-center my-auto px-1">Belum ada ukuran, tambahkan di bawah 👇</span>}
+
+                  {/* Tags Area */}
+                  <div style={{
+                    display: 'flex', flexWrap: 'wrap', gap: '0.4rem',
+                    minHeight: '42px', marginBottom: '0.75rem',
+                    padding: '0.5rem',
+                    borderRadius: '10px',
+                    background: 'rgba(var(--surface), 0.6)',
+                    border: '1px solid rgba(var(--border), 0.25)',
+                  }}>
+                    {sizes.length === 0 && (
+                      <span style={{ fontSize: '0.75rem', color: 'rgb(var(--text-muted))', fontStyle: 'italic', display: 'flex', alignItems: 'center' }}>
+                        Belum ada ukuran ditambahkan
+                      </span>
+                    )}
                     {sizes.map(s => (
-                      <span 
-                        key={s} 
-                        className="group/tag inline-flex items-center gap-1.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 font-semibold px-2.5 py-1.5 rounded-md border border-indigo-200 dark:border-indigo-800/60 shadow-sm text-sm"
-                      >
-                        {s} 
-                        <button 
-                          onClick={() => handleRemoveSize(s)} 
-                          className="opacity-60 hover:opacity-100 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded p-0.5 transition-all"
-                          title={`Hapus ukuran ${s}`}
+                      <span key={s} style={{
+                        ...tagBaseStyle,
+                        background: 'rgba(var(--primary), 0.1)',
+                        color: 'rgb(var(--primary))',
+                        border: '1px solid rgba(var(--primary), 0.2)',
+                      }}>
+                        {s}
+                        <button
+                          onClick={() => handleRemoveSize(s)}
+                          style={tagRemoveBtnStyle}
+                          title={`Hapus ${s}`}
+                          onMouseEnter={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.color = 'rgb(var(--danger))'; e.currentTarget.style.background = 'rgba(var(--danger),0.1)'; }}
+                          onMouseLeave={e => { e.currentTarget.style.opacity = '0.55'; e.currentTarget.style.color = 'inherit'; e.currentTarget.style.background = 'none'; }}
                         >
-                          <X size={14} />
+                          <X size={13} />
                         </button>
                       </span>
                     ))}
                   </div>
-                  
-                  <div className="flex gap-2 relative z-10">
-                    <input 
-                      type="text" 
-                      className="flex-1 px-4 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none shadow-sm" 
-                      placeholder="Ketik ukuran lalu Enter..." 
+
+                  {/* Add size input */}
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <input
+                      type="text"
+                      style={{ ...inputStyle, flex: 1, padding: '0.5rem 0.75rem' }}
+                      placeholder="Ketik ukuran lalu Enter..."
                       value={newSize}
                       onChange={e => setNewSize(e.target.value)}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleAddSize();
-                        }
-                      }}
+                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddSize(); } }}
+                      onFocus={e => { e.currentTarget.style.borderColor = 'rgb(var(--primary))'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(var(--primary),0.1)'; }}
+                      onBlur={e => { e.currentTarget.style.borderColor = 'rgba(var(--border),0.7)'; e.currentTarget.style.boxShadow = 'none'; }}
                     />
-                    <button 
-                      onClick={handleAddSize} 
+                    <button
+                      onClick={handleAddSize}
                       disabled={!newSize.trim()}
-                      className="px-3 shrink-0 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-slate-700 dark:text-indigo-400 border border-slate-200 dark:border-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                      title="Tambah Ukuran"
+                      className="btn btn-primary"
+                      style={{ padding: '0.5rem', minWidth: '38px', minHeight: '38px', opacity: newSize.trim() ? 1 : 0.45 }}
                     >
                       <Plus size={18} />
                     </button>
                   </div>
                 </div>
 
-                {/* Colors Block */}
-                <div className="relative p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden group hover:border-purple-300 dark:hover:border-purple-700/50 transition-colors">
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-purple-50 dark:bg-purple-900/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2 group-hover:bg-purple-100 dark:group-hover:bg-purple-900/20 transition-colors"></div>
-                  
-                  <label className="font-bold flex items-center justify-between text-sm mb-4 relative z-10">
-                    <span className="flex items-center gap-2 text-slate-700 dark:text-slate-300">🎨 Warna (Color)</span>
-                    <span className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded text-xs font-bold">{colors.length}</span>
+                {/* ---- COLOR BLOCK ---- */}
+                <div style={{
+                  padding: '1.25rem',
+                  borderRadius: '14px',
+                  border: '1px solid rgba(var(--border), 0.3)',
+                  background: 'rgba(var(--surface-hover), 0.2)',
+                  transition: 'border-color 0.2s',
+                }}>
+                  <label style={{ fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.75rem' }}>
+                    <span>🎨 Warna (Color)</span>
+                    <span style={{
+                      background: 'rgba(var(--accent), 0.1)', color: 'rgb(var(--accent))',
+                      padding: '0.18rem 0.5rem', borderRadius: '999px',
+                      fontSize: '0.72rem', fontWeight: 600,
+                    }}>{colors.length}</span>
                   </label>
-                  
-                  <div className="flex flex-wrap gap-2 mb-5 min-h-[44px] relative z-10 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-100 dark:border-slate-800/80">
-                    {colors.length === 0 && <span className="text-xs text-slate-400 italic flex items-center my-auto px-1">Belum ada warna, tambahkan di bawah 👇</span>}
+
+                  {/* Tags Area */}
+                  <div style={{
+                    display: 'flex', flexWrap: 'wrap', gap: '0.4rem',
+                    minHeight: '42px', marginBottom: '0.75rem',
+                    padding: '0.5rem',
+                    borderRadius: '10px',
+                    background: 'rgba(var(--surface), 0.6)',
+                    border: '1px solid rgba(var(--border), 0.25)',
+                  }}>
+                    {colors.length === 0 && (
+                      <span style={{ fontSize: '0.75rem', color: 'rgb(var(--text-muted))', fontStyle: 'italic', display: 'flex', alignItems: 'center' }}>
+                        Belum ada warna ditambahkan
+                      </span>
+                    )}
                     {colors.map(c => (
-                      <span 
-                        key={c} 
-                        className="group/tag inline-flex items-center gap-1.5 bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 font-semibold px-2.5 py-1.5 rounded-md border border-purple-200 dark:border-purple-800/60 shadow-sm text-sm"
-                      >
-                        {c} 
-                        <button 
-                          onClick={() => handleRemoveColor(c)} 
-                          className="opacity-60 hover:opacity-100 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded p-0.5 transition-all"
-                          title={`Hapus warna ${c}`}
+                      <span key={c} style={{
+                        ...tagBaseStyle,
+                        background: 'rgba(var(--accent), 0.1)',
+                        color: 'rgb(var(--accent))',
+                        border: '1px solid rgba(var(--accent), 0.2)',
+                      }}>
+                        {c}
+                        <button
+                          onClick={() => handleRemoveColor(c)}
+                          style={tagRemoveBtnStyle}
+                          title={`Hapus ${c}`}
+                          onMouseEnter={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.color = 'rgb(var(--danger))'; e.currentTarget.style.background = 'rgba(var(--danger),0.1)'; }}
+                          onMouseLeave={e => { e.currentTarget.style.opacity = '0.55'; e.currentTarget.style.color = 'inherit'; e.currentTarget.style.background = 'none'; }}
                         >
-                          <X size={14} />
+                          <X size={13} />
                         </button>
                       </span>
                     ))}
                   </div>
-                  
-                  <div className="flex gap-2 relative z-10">
-                    <input 
-                      type="text" 
-                      className="flex-1 px-4 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all outline-none shadow-sm" 
-                      placeholder="Ketik warna lalu Enter..." 
+
+                  {/* Add color input */}
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <input
+                      type="text"
+                      style={{ ...inputStyle, flex: 1, padding: '0.5rem 0.75rem' }}
+                      placeholder="Ketik warna lalu Enter..."
                       value={newColor}
                       onChange={e => setNewColor(e.target.value)}
-                      onKeyDown={e => {
-                         if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleAddColor();
-                        }
-                      }}
+                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddColor(); } }}
+                      onFocus={e => { e.currentTarget.style.borderColor = 'rgb(var(--accent))'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(var(--accent),0.1)'; }}
+                      onBlur={e => { e.currentTarget.style.borderColor = 'rgba(var(--border),0.7)'; e.currentTarget.style.boxShadow = 'none'; }}
                     />
-                    <button 
-                      onClick={handleAddColor} 
+                    <button
+                      onClick={handleAddColor}
                       disabled={!newColor.trim()}
-                      className="px-3 shrink-0 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-purple-100 dark:hover:bg-purple-900/50 text-slate-700 dark:text-purple-400 border border-slate-200 dark:border-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                      title="Tambah Warna"
+                      style={{
+                        padding: '0.5rem', minWidth: '38px', minHeight: '38px',
+                        borderRadius: '10px', border: 'none', cursor: 'pointer',
+                        background: newColor.trim()
+                          ? 'linear-gradient(135deg, rgb(var(--accent)), #c084fc)'
+                          : 'rgba(var(--border), 0.3)',
+                        color: newColor.trim() ? '#fff' : 'rgb(var(--text-muted))',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        opacity: newColor.trim() ? 1 : 0.45,
+                        transition: 'all 0.2s',
+                      }}
                     >
                       <Plus size={18} />
                     </button>
@@ -331,44 +481,79 @@ export default function VariantGenerator({ categories, onClose }: { categories: 
           </div>
         </div>
 
-        {/* Footer / Action Bar */}
-        <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex flex-col sm:flex-row items-center justify-between gap-4 mt-auto">
-          
-          <div className="hidden sm:block text-sm text-slate-500 dark:text-slate-400 font-medium whitespace-nowrap">
-            Pastikan data sudah benar sebelum mendownload!
+        {/* ---- Footer / Action Bar ---- */}
+        <div style={{
+          display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '1rem',
+          padding: '1rem 1.5rem',
+          borderTop: '1px solid rgba(var(--border), 0.4)',
+          background: 'rgba(var(--surface-hover), 0.4)',
+        }}>
+          {/* Estimasi */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '0.75rem',
+            background: 'rgba(var(--surface), 0.7)', padding: '0.5rem 0.85rem',
+            borderRadius: '10px', border: '1px solid rgba(var(--border), 0.5)',
+          }}>
+            <div style={{
+              width: '36px', height: '36px', borderRadius: '8px',
+              background: 'rgba(var(--primary), 0.1)',
+              color: 'rgb(var(--primary))',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Zap size={18} />
+            </div>
+            <div>
+              <p style={{ fontSize: '0.6rem', color: 'rgb(var(--text-muted))', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.05em', margin: 0 }}>
+                Estimasi
+              </p>
+              <p style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0, color: 'rgb(var(--foreground-rgb))' }}>
+                {totalVariants} <span style={{ fontSize: '0.75rem', fontWeight: 400, color: 'rgb(var(--text-muted))' }}>Varian</span>
+              </p>
+            </div>
           </div>
 
-          <div className="flex items-center gap-3 w-full sm:w-auto">
-            <button 
-              onClick={handleClose} 
-              className="px-5 py-2.5 rounded-lg font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors flex-1 sm:flex-none border border-transparent"
-            >
+          {/* Buttons */}
+          <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <button onClick={onClose} className="btn btn-outline" style={{ padding: '0.6rem 1.25rem' }}>
               Batalkan
             </button>
-            <button 
-              onClick={handleGenerate} 
+            <button
+              onClick={handleGenerate}
               disabled={isLoading || totalVariants === 0}
-              className={`px-6 py-2.5 rounded-lg font-bold text-white shadow-md transition-all flex items-center justify-center gap-2 flex-1 sm:flex-none ${isLoading || totalVariants === 0 ? 'bg-slate-400 dark:bg-slate-700 cursor-not-allowed shadow-none' : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-90 hover:shadow-lg hover:-translate-y-0.5'}`}
+              className="btn btn-primary"
+              style={{
+                padding: '0.65rem 1.5rem', fontSize: '0.95rem',
+                opacity: (isLoading || totalVariants === 0) ? 0.5 : 1,
+                cursor: (isLoading || totalVariants === 0) ? 'not-allowed' : 'pointer',
+                boxShadow: totalVariants > 0 ? '0 4px 14px -3px rgba(var(--primary), 0.4)' : 'none',
+              }}
             >
               {isLoading ? (
-                <>
-                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <svg style={{ animation: 'spin 1s linear infinite', width: '16px', height: '16px' }} viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.25" />
+                    <path d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" fill="currentColor" opacity="0.75" />
                   </svg>
-                  Memproses...
-                </>
+                  Sedang Membuat...
+                </span>
               ) : (
-                <>
-                  <Zap size={18} /> 
-                  Generate {totalVariants} Varian
-                </>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <Zap size={17} /> Generate Sekarang
+                </span>
               )}
             </button>
           </div>
         </div>
       </div>
-    </div>,
-    document.body
+
+      {/* Keyframe animations injected inline */}
+      <style>{`
+        @keyframes svgFadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes svgSlideUp { from { opacity: 0; transform: translateY(24px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+      `}</style>
+    </div>
   );
+
+  return createPortal(content, document.body);
 }
