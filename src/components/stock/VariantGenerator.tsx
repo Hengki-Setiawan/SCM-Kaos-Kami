@@ -67,11 +67,14 @@ export default function VariantGenerator({ categories, onClose }: { categories: 
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md transition-all duration-300">
+    <div 
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 transition-all duration-300"
+      style={{ backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)' }}
+    >
       {/* Modal Container */}
       <div 
-        className="w-full glass-card relative flex flex-col shadow-2xl border border-[rgba(var(--primary),0.2)] bg-opacity-95" 
-        style={{ maxWidth: '48rem', maxHeight: '90vh', background: 'var(--surface)' }}
+        className="w-full glass-card relative flex flex-col shadow-2xl border border-[rgba(var(--primary),0.2)]" 
+        style={{ maxWidth: '48rem', maxHeight: '90vh', backgroundColor: 'rgb(var(--surface))' }}
       >
         {/* Header */}
         <div className="flex justify-between items-center mb-6 pb-4 border-b border-[rgba(var(--border),0.4)]">
