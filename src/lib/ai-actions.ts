@@ -1,7 +1,8 @@
 import { db } from '@/db';
 import { products, stockMovements, autoDeductRules, categories, suppliers, orders, orderItems } from '@/db/schema';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, sql, and, gte } from 'drizzle-orm';
 import { Groq } from 'groq-sdk';
+import { cascadeChat } from './groq-cascade';
 import { v4 as uuidv4 } from 'uuid';
 
 // ==================== NON-PRODUCT CRUD ACTIONS ====================
@@ -167,7 +168,7 @@ export async function executeNonProductAction(action: any) {
           quantity: qty, unitPrice: p.unitPrice || 0,
         });
         // Deduct stock
-        await tx.update(products).set({ currentStock: p.currentStock - qty }).where(eq(products.id, p.id));
+        await tx.update(products).set({ currentStock: sql`GREATEST(0, current_stock - ${qty})` }).where(eq(products.id, p.id));
         await tx.insert(stockMovements).values({
           id: uuidv4(), productId: p.id, type: 'OUT',
           quantity: qty, reason: `Order ${orderNumber} via Telegram`,
@@ -192,7 +193,7 @@ export async function executeNonProductAction(action: any) {
         for (const item of items) {
           const [prod] = await tx.select().from(products).where(eq(products.id, item.productId));
           if (prod) {
-            await tx.update(products).set({ currentStock: prod.currentStock + item.quantity }).where(eq(products.id, prod.id));
+            await tx.update(products).set({ currentStock: sql`current_stock + ${item.quantity}` }).where(eq(products.id, prod.id));
           }
         }
         await tx.delete(orderItems).where(eq(orderItems.orderId, ord.id));
@@ -231,7 +232,17 @@ const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 export async function parseAIIntent(text: string, contextMessages: {role: string, content: string}[] = [], lastProductName?: string) {
   try {
     const allProd = await db.select({ sku: products.sku, name: products.name }).from(products);
-    const catalogStr = allProd.map(p => `[SKU: ${p.sku}] ${p.name}`).join('\\n');
+    
+    // Smart Context Injection
+    const keywords = text.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+    let relevantProducts = allProd.filter(p => {
+       const str = `${p.sku} ${p.name}`.toLowerCase();
+       return keywords.some(k => str.includes(k));
+    });
+    if (relevantProducts.length === 0) relevantProducts = allProd.slice(0, 50);
+    else if (relevantProducts.length > 50) relevantProducts = relevantProducts.slice(0, 50);
+
+    const catalogStr = relevantProducts.map(p => `[SKU: ${p.sku}] ${p.name}`).join('\\n');
     let ctxStr = contextMessages.map(m => `${m.role}: ${m.content}`).join('\\n');
     
     // Auto-inject context if user says e.g "tambah 5"
@@ -274,72 +285,14 @@ ${catalogStr}
 KONTEKS: ${ctxStr}
 USER: "${userText}"`;
     
-    const completion = await groq.chat.completions.create({
+    const { result: completion } = await cascadeChat({
       messages: [{ role: 'system', content: systemContent }],
-      model: 'llama-3.1-8b-instant',
+      type: 'fast',
       temperature: 0.1,
       response_format: { type: 'json_object' }
     });
     return JSON.parse(completion.choices[0]?.message?.content || '{"action":"CHAT"}');
   } catch {
-    return null;
-  }
-}
-
-export async function parseAndExecuteAIAction(text: string, source: 'web' | 'telegram', contextMessages: any[] = []) {
-  try {
-    const allProducts = await db.select().from(products);
-    const catalogStr = allProducts.map(p => `[SKU: ${p.sku}] ${p.name}`).join('\n');
-
-    const systemPrompt = `
-      Anda adalah "Action Parser" untuk sistem SCM Kaos Kami.
-      Tugas Anda menganalisis pesan user dan mengonversinya menjadi JSON action object.
-      
-      Valid Actions:
-      - "PROCESS_ORDER" (jika user bilang "kirim pesanan", "kirim 1 paket", "proses order")
-      - "DEDUCT_STOCK" (jika user bilang "kurangi stok", "jual")
-      - "ADD_STOCK" (jika user bilang "tambah stok", "restock", "beli barang")
-      - "UPDATE_STOCK" (jika user bilang "ubah stok jadi X", "set stok")
-      - "DELETE_PRODUCT" (jika user bilang "hapus produk", "hilangkan barang", "hapus dari database")
-      - "CHAT" (jika user sekadar bertanya stok, minta saran, hitung harga, ngobrol)
-
-      Return STRICTLY valid JSON format: 
-      {"action": "TIPE", "sku": "nama barang/sku", "qty": angka, "reason": "alasan"}
-      
-      Contoh Chat: "Aku baru kirim 1 paket kaos hitam L"
-      Output JSON: {"action": "PROCESS_ORDER", "sku": "kaos hitam L", "qty": 1, "reason": "Kirim pesanan Telegram"}
-      
-      Contoh Chat: "Ubah stok kaos putih M jadi 15"
-      Output JSON: {"action": "UPDATE_STOCK", "sku": "kaos putih M", "qty": 15, "reason": "Koreksi manual"}
-      
-      ⚡ SANGAT PENTING: Cocokkan produk yang dimaksud user dengan KATALOG resmimu di bawah ini:
-      ${catalogStr}
-      
-      Isi field "sku" di JSON dengan "SKU" persis atau "Nama" persis dari katalog yang paling cocok dengan ucapan user. Jangan mengarang nama barang.
-
-      Pesan User: "${text}"
-      
-      Konteks Chat Sebelumnya (Gunakan ini jika User tidak menyebut nama barang secara spesifik): 
-      ${JSON.stringify(contextMessages.slice(-5))}
-    `;
-
-    const completion = await groq.chat.completions.create({
-      messages: [{ role: 'system', content: systemPrompt }],
-      model: 'llama-3.1-8b-instant',
-      temperature: 0.1,
-      response_format: { type: 'json_object' }
-    });
-
-    const intent = JSON.parse(completion.choices[0]?.message?.content || '{"action": "CHAT"}');
-
-    if (intent.action === 'CHAT' || !intent.sku) {
-      return null;
-    }
-
-    return await executeStockActionDirectly(intent, source, contextMessages);
-
-  } catch (error) {
-    console.error('AI Action Parse Error:', error);
     return null;
   }
 }
@@ -405,22 +358,42 @@ export async function executeStockActionDirectly(intent: any, source: 'web' | 't
       return { message: `❌ Gagal mengeksekusi aksi. Produk${intent.sku ? ` yang mirip dengan '${intent.sku}'` : ''} tidak ditemukan.` };
     }
 
+    // Verify Action using Gemini (Pipeline Pattern)
+    const { verify } = await import('@/lib/ai-collab');
+    const verifyResult = await verify(intent, p, contextMessages.map((m: any) => m.content).join(' || '));
+    if (!verifyResult.approved) {
+      return { message: `❌ *Aksi Ditolak Pengawas AI*\n\nAlasan: ${verifyResult.reason}` };
+    }
+
     let summary = `✅ Berhasil eksekusi perintah!\n*Produk Utama:* ${p.name}\n`;
+    if (verifyResult.warning) {
+      summary = `⚠️ *Peringatan AI:* ${verifyResult.warning}\n\n${summary}`;
+    }
+
     const undoToken = uuidv4();
 
     // Aksi Single Produk (Add/Update/Deduct Biasa)
     if (['DEDUCT_STOCK', 'ADD_STOCK', 'UPDATE_STOCK'].includes(intent.action)) {
-       let newStock = p.currentStock;
        let moveType = 'ADJUSTMENT';
+       let updatedProduct;
 
-       if (intent.action === 'DEDUCT_STOCK') { newStock = p.currentStock - (intent.qty || 0); moveType = 'OUT'; }
-       else if (intent.action === 'ADD_STOCK') { newStock = p.currentStock + (intent.qty || 0); moveType = 'IN'; }
-       else if (intent.action === 'UPDATE_STOCK') { newStock = intent.qty || 0; moveType = newStock > p.currentStock ? 'ADJUSTMENT_IN' : 'ADJUSTMENT_OUT'; }
+       if (intent.action === 'DEDUCT_STOCK') { 
+         moveType = 'OUT'; 
+         const rows = await db.update(products).set({ currentStock: sql`current_stock - ${intent.qty || 0}` }).where(and(eq(products.id, p.id), gte(products.currentStock, intent.qty || 0))).returning({ currentStock: products.currentStock });
+         if (rows.length === 0) return { message: `❌ Aksi ditolak: Stok tidak mencukupi (Sisa stok riil: ${p.currentStock}).` };
+         updatedProduct = rows[0];
+       }
+       else if (intent.action === 'ADD_STOCK') { 
+         moveType = 'IN'; 
+         [updatedProduct] = await db.update(products).set({ currentStock: sql`current_stock + ${intent.qty || 0}` }).where(eq(products.id, p.id)).returning({ currentStock: products.currentStock });
+       }
+       else if (intent.action === 'UPDATE_STOCK') { 
+         [updatedProduct] = await db.update(products).set({ currentStock: intent.qty || 0 }).where(eq(products.id, p.id)).returning({ currentStock: products.currentStock });
+         moveType = updatedProduct.currentStock > p.currentStock ? 'ADJUSTMENT_IN' : 'ADJUSTMENT_OUT';
+       }
 
-       if (newStock < 0) newStock = 0;
+       const newStock = updatedProduct?.currentStock ?? 0;
        const diff = Math.abs(newStock - p.currentStock);
-
-       await db.update(products).set({ currentStock: newStock }).where(eq(products.id, p.id));
        
        if (diff > 0) {
          await db.insert(stockMovements).values({
@@ -434,9 +407,12 @@ export async function executeStockActionDirectly(intent: any, source: 'web' | 't
     // Aksi PROCESS_ORDER (Deduct Produk Utama + Auto Deduct Packaging)
     if (intent.action === 'PROCESS_ORDER') {
        const qtyOrder = intent.qty || 1;
-       const newStock = Math.max(0, p.currentStock - qtyOrder);
        
-       await db.update(products).set({ currentStock: newStock }).where(eq(products.id, p.id));
+       const rows = await db.update(products).set({ currentStock: sql`current_stock - ${qtyOrder}` }).where(and(eq(products.id, p.id), gte(products.currentStock, qtyOrder))).returning({ currentStock: products.currentStock });
+       if (rows.length === 0) return { message: `❌ Pesanan dibatalkan: Stok produk utama tidak mencukupi (Sisa riil: ${p.currentStock}).` };
+       const updatedMain = rows[0];
+       const newStock = updatedMain?.currentStock ?? 0;
+
        await db.insert(stockMovements).values({
          id: uuidv4(), productId: p.id, type: 'OUT', quantity: qtyOrder, reason: 'Pengiriman via AI Chat', createdBy: `ai_${source}`,
          undoToken: undoToken, canBeUndone: true
@@ -454,15 +430,20 @@ export async function executeStockActionDirectly(intent: any, source: 'web' | 't
                const packProd = allProducts.find(x => x.id === item.productId);
                if (packProd) {
                   const dedQty = item.quantity * qtyOrder;
-                  const newPackStock = Math.max(0, packProd.currentStock - dedQty);
+                  const packRows = await db.update(products).set({ currentStock: sql`current_stock - ${dedQty}` }).where(and(eq(products.id, packProd.id), gte(products.currentStock, dedQty))).returning({ currentStock: products.currentStock });
+                  const updatedPack = packRows.length > 0 ? packRows[0] : null;
+                  const newPackStock = updatedPack?.currentStock ?? packProd.currentStock;
                   
-                  await db.update(products).set({ currentStock: newPackStock }).where(eq(products.id, packProd.id));
+                  if (!updatedPack) {
+                    summary += `⚠️ ${packProd.name}: Gagal potong (Stok kosong/kurang)\n`;
+                  } else {
                   await db.insert(stockMovements).values({
                     id: uuidv4(), productId: packProd.id, type: 'OUT', quantity: dedQty, reason: `Auto Deduct ${rule.name}`, createdBy: `ai_auto`,
                     undoToken: undoToken, canBeUndone: true
                   });
 
                   summary += `• ${packProd.name}: -${dedQty} (Sisa ${newPackStock})\n`;
+                  }
                   deductedItemsCount++;
                }
             }

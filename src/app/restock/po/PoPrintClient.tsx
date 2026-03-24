@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function PoPrintClient({ items }: { items: any[] }) {
   const currentDate = new Date().toLocaleDateString('id-ID', {
@@ -9,10 +9,21 @@ export default function PoPrintClient({ items }: { items: any[] }) {
   
   const poNumber = `PO-${new Date().getFullYear()}${String(new Date().getMonth()+1).padStart(2, '0')}${String(new Date().getDate()).padStart(2, '0')}-${Math.floor(Math.random() * 1000)}`;
 
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
+  const [loadingAi, setLoadingAi] = useState(false);
+
   useEffect(() => {
-    // Optional: auto-trigger print after 1.5s
-    // setTimeout(() => window.print(), 1500);
-  }, []);
+    if (items.length > 0) {
+      setLoadingAi(true);
+      fetch('/api/stock/low-stock/ai-summary')
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) setAiSummary(data.aiSummary);
+        })
+        .catch(err => console.error('Failed to fetch AI summary:', err))
+        .finally(() => setLoadingAi(false));
+    }
+  }, [items]);
 
   return (
     <div style={{ maxWidth: '800px', margin: '0 auto', fontFamily: 'Arial, sans-serif' }}>
@@ -34,6 +45,21 @@ export default function PoPrintClient({ items }: { items: any[] }) {
           Cetak PDF / Print
         </button>
       </div>
+
+      {loadingAi ? (
+        <div className="no-print mb-8 p-4 border border-[rgba(var(--primary),0.2)] rounded-lg flex gap-3 text-muted bg-[rgba(var(--primary),0.02)]">
+          <span className="animate-spin text-primary">⚙️</span>
+          <span>AI Supply Chain sedang menyusun rekomendasi pengadaan...</span>
+        </div>
+      ) : aiSummary ? (
+        <div className="no-print mb-8 p-5 border-l-4 border-l-[rgb(var(--primary))] bg-[rgba(var(--primary),0.05)] rounded-lg" style={{ color: 'rgb(var(--foreground))' }}>
+          <div className="flex items-center gap-2 mb-3">
+             <span className="text-primary text-xl">🤖</span>
+             <h3 className="font-bold text-lg m-0">AI Restock Advisor</h3>
+          </div>
+          <div dangerouslySetInnerHTML={{ __html: aiSummary }} className="text-sm font-medium opacity-90 leading-relaxed" />
+        </div>
+      ) : null}
 
       {/* PO Letterhead */}
       <div style={{ borderBottom: '2px solid #000', paddingBottom: '1rem', marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>

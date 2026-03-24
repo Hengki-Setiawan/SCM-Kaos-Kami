@@ -106,6 +106,14 @@ export default function Topbar() {
               )) : (
                 <div style={{ padding: '1rem', textAlign: 'center', fontSize: '0.8rem' }} className="text-muted">Semua stok aman ✅</div>
               )}
+              {lowStockCount > 0 && (
+                <Link href="/analysis#low-stock" onClick={() => setShowNotif(false)} 
+                  style={{ display: 'block', padding: '0.75rem', textAlign: 'center', fontSize: '0.8rem', fontWeight: 600, color: 'rgb(var(--primary))', borderTop: '1px solid rgba(var(--border), 0.3)', textDecoration: 'none' }}
+                  className="hover-bg"
+                >
+                  Lihat Selengkapnya →
+                </Link>
+              )}
             </div>
           )}
         </div>

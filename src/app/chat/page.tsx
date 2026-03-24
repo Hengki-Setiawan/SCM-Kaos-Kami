@@ -2,12 +2,14 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Bot, User, Send, Mic, Image as ImageIcon, Square, X, Loader2 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 
 type Message = {
   id: string;
   role: 'user' | 'assistant';
   text: string;
   imageUrl?: string;
+  pendingAction?: any;
 };
 
 export default function ChatPage() {
@@ -180,7 +182,8 @@ export default function ChatPage() {
       setMessages(prev => [...prev, { 
         id: (Date.now() + 1).toString(), 
         role: 'assistant', 
-        text: data.response || 'Terjadi kesalahan pada AI.'
+        text: data.response || 'Terjadi kesalahan pada AI.',
+        pendingAction: data.pendingAction
       }]);
     } catch (error) {
       console.error(error);
@@ -188,6 +191,36 @@ export default function ChatPage() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const executePending = async (action: any, msgId: string) => {
+    setIsLoading(true);
+    try {
+      setMessages(prev => prev.filter(m => m.id !== msgId));
+      setMessages(prev => [...prev, { id: Date.now().toString(), role: 'user', text: `Tolong eksekusi perintah stok ini.` }]);
+
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ executePending: action }),
+      });
+      const data = await res.json();
+      setMessages(prev => [...prev, { 
+        id: (Date.now() + 1).toString(), 
+        role: 'assistant', 
+        text: data.response || 'Terjadi kesalahan eksekusi.'
+      }]);
+    } catch (e) {
+      setMessages(prev => [...prev, { id: Date.now().toString(), role: 'assistant', text: 'Gagal mengeksekusi aksi.' }]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const cancelPending = (msgId: string) => {
+    setMessages(prev => prev.filter(m => m.id !== msgId));
+    setMessages(prev => [...prev, { id: Date.now().toString(), role: 'user', text: 'Batalkan perintah sebelumnya.' }]);
+    setMessages(prev => [...prev, { id: (Date.now()+1).toString(), role: 'assistant', text: 'Baik, perintah aksi stok telah dibatalkan.' }]);
   };
 
   const formatTime = (seconds: number) => {
@@ -241,9 +274,15 @@ export default function ChatPage() {
                     <img src={msg.imageUrl} alt="Chat attachment" className="max-h-60 w-full object-cover" />
                   </div>
                 )}
-                <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6, fontSize: '0.95rem' }}>
-                  {msg.text}
+                <div className={`markdown-body ${msg.role === 'user' ? 'text-white' : ''}`} style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6, fontSize: '0.95rem' }}>
+                  <ReactMarkdown>{msg.text}</ReactMarkdown>
                 </div>
+                {msg.pendingAction && (
+                  <div className="mt-4 flex gap-2">
+                    <button onClick={() => executePending(msg.pendingAction, msg.id)} className="btn btn-primary" style={{ flex: 1, padding: '0.5rem', fontSize: '0.85rem' }}>Simpan & Eksekusi</button>
+                    <button onClick={() => cancelPending(msg.id)} className="btn btn-outline" style={{ flex: 1, padding: '0.5rem', fontSize: '0.85rem', color: 'rgb(var(--foreground-rgb))' }}>Batal</button>
+                  </div>
+                )}
               </div>
             </div>
           ))}

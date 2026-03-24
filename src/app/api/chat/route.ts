@@ -1,15 +1,22 @@
 import { NextResponse } from 'next/server';
 import { Groq } from 'groq-sdk';
 import { db } from '@/db';
-import { products, orders, stockMovements } from '@/db/schema';
-import { desc } from 'drizzle-orm';
+import { products, orders, stockMovements, aiCache } from '@/db/schema';
+import { desc, eq, sql } from 'drizzle-orm';
+import crypto from 'crypto';
+import { v4 as uuidv4 } from 'uuid';
 import { parseAIIntent, executeStockActionDirectly } from '@/lib/ai-actions';
+import { pipeline } from '@/lib/ai-collab';
 import { detectMultiIntent, analyzeTrend } from '@/lib/smart-ai';
 import { checkRateLimit } from '@/lib/rate-limiter';
+import { requireRole } from '@/lib/rbac';
 
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 });
+
+// O5: AI Response Caching (SQLite Persistent, 5 minutes TTL)
+const CACHE_TTL = 5 * 60 * 1000;
 
 export async function POST(req: Request) {
   try {
@@ -18,7 +25,18 @@ export async function POST(req: Request) {
     const { allowed } = checkRateLimit(`chat:${ip}`, 10, 60000);
     if (!allowed) return NextResponse.json({ error: 'Terlalu banyak request. Coba lagi dalam 1 menit.' }, { status: 429 });
 
-    const { message, context, imageUrl } = await req.json();
+    const rbacResponse = await requireRole(['admin', 'manager', 'staff']); // Allow staff for now but they shouldn't do dangerous stuff, wait, staff isn't allowed to do dangerous stuff! I will set to admin, manager, staff and rely on bot or I'll just restrict to admin and manager as instructed by the bug fix.
+    // Wait, the bug specifically says: "Staff yang login bisa menjalankan semua aksi termasuk hapus produk via AI chat. Fix: Tambahkan middleware RBAC."
+    // So let's restrict AI Chat to admin and manager:
+    const roleCheck = await requireRole(['admin', 'manager']);
+    if (roleCheck) return roleCheck;
+
+    const { message, context, imageUrl, executePending } = await req.json();
+
+    if (executePending) {
+       const executed = await executeStockActionDirectly(executePending, 'web');
+       return NextResponse.json({ response: executed?.message || 'Aksi dieksekusi.' });
+    }
 
     if (!message && !imageUrl) {
         return NextResponse.json({ error: 'Message or Image is required' }, { status: 400 });
@@ -65,7 +83,8 @@ export async function POST(req: Request) {
     }
     
     // Transformasi context ke format role-content
-    const formattedCtx = (context || []).map((msg: any) => ({ role: msg.role, content: msg.text }));
+    // Limit context history to max 8 elements to save tokens and prevent overload (Sliding Window Memory)
+    const formattedCtx = (context || []).slice(-8).map((msg: any) => ({ role: msg.role, content: msg.text }));
 
     // 1. Cek Multi-Intent (Batch Operations)
     const multiIntents = detectMultiIntent(message);
@@ -96,13 +115,40 @@ export async function POST(req: Request) {
     // 2. Cek aksi tunggal (Single Intent)
     const actionResult = await parseAIIntent(message, formattedCtx, lastProductName);
     if (actionResult && actionResult.action !== 'CHAT') {
-       const executed = await executeStockActionDirectly(actionResult, 'web');
-       if (executed && executed.message) {
-          return NextResponse.json({ response: executed.message });
-       }
+       return NextResponse.json({
+          pendingAction: actionResult,
+          response: `🤖 **Konfirmasi Aksi Sistem**\n\nTampaknya Anda ingin melakukan:\n- **Aksi:** \`${actionResult.action}\`\n- **Target:** *${actionResult.sku || actionResult.name || actionResult.keyword || '-'}*\n- **Jumlah/Data:** ${actionResult.qty || actionResult.newName || '-'}\n\nApakah Anda yakin ingin mengeksekusi ini ke Database?`
+       });
     }
 
     // 3. Fallback CHAT (Business Intelligence & Saran)
+    const cacheRawKey = `${message}_${context?.length || 0}`;
+    const cacheKey = crypto.createHash('md5').update(cacheRawKey).digest('hex');
+    
+    try {
+      await db.run(sql`
+        CREATE TABLE IF NOT EXISTS ai_cache (
+          id TEXT PRIMARY KEY,
+          messages_hash TEXT NOT NULL UNIQUE,
+          response TEXT NOT NULL,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+        )
+      `);
+    } catch(e) {}
+
+    const [cachedData] = await db.select().from(aiCache).where(eq(aiCache.messagesHash, cacheKey));
+    if (cachedData) {
+       const createdTime = new Date(`${cachedData.createdAt}Z`).getTime();
+       if (Date.now() - createdTime < CACHE_TTL) {
+         return NextResponse.json({ 
+            response: cachedData.response,
+            ai_mode: 'cache'
+         });
+       } else {
+         await db.delete(aiCache).where(eq(aiCache.id, cachedData.id));
+       }
+    }
+
     const allProducts = await db.select().from(products);
     const recentOrders = await db.select({ orderNum: orders.orderNumber, status: orders.status }).from(orders).limit(5).orderBy(desc(orders.createdAt));
     
@@ -113,7 +159,7 @@ export async function POST(req: Request) {
     const systemPrompt = `
       Anda adalah Llama Super AI untuk Sistem SCM "Kaos Kami".
       Anda pintar menghitung Harga Pokok Penjualan (HPP) / Profit margin, membaca daftar array context, dan menganalisis data tren Business Intelligence.
-      Gunakan bahasa Indonesia yang santai, terstruktur rapi dengan format Markdown, tapi profesional! JANGAN SAYA/AKU, panggil diri Anda "AI Assistant" atau "Bot SCM".
+      Gunakan bahasa Indonesia yang santai, terstruktur rapi dengan format Markdown murni (**tebal**, *miring*, list, tabel, dll) agar mudah dibaca. JANGAN SAYA/AKU, panggil diri Anda "AI Assistant" atau "Bot SCM".
       
       DATA GUDANG TERKINI:
       - Total Varian Produk: ${allProducts.length}
@@ -132,19 +178,31 @@ export async function POST(req: Request) {
       5. Peringatkan user jika tren penjualan suatu barang sedang jatuh (falling).
     `;
 
-    const chatCompletion = await groq.chat.completions.create({
-      messages: [
-        { role: 'system', content: systemPrompt },
-        ...formattedCtx,
-        { role: 'user', content: message }
-      ],
-      model: 'llama-3.1-8b-instant',
-      temperature: 0.3,
-      max_tokens: 1024,
+    const { content, mode } = await pipeline({
+      userMessage: message,
+      systemPrompt: systemPrompt,
+      context: formattedCtx,
+      dbData: { products: allProducts.length, recentOrders, trends: trendAnalysis }
     });
 
+    if (content) {
+      try {
+        await db.insert(aiCache).values({
+          id: uuidv4(),
+          messagesHash: cacheKey,
+          response: content
+        }).onConflictDoUpdate({
+          target: aiCache.messagesHash,
+          set: { response: content, createdAt: sql`CURRENT_TIMESTAMP` }
+        });
+      } catch (e) {
+        console.error('Failed to cache response to Turso:', e);
+      }
+    }
+
     return NextResponse.json({ 
-      response: chatCompletion.choices[0]?.message?.content || 'Maaf, saya tidak bisa memproses permintaan itu.'
+      response: content || 'Maaf, saya tidak bisa memproses permintaan itu.',
+      ai_mode: mode
     });
 
   } catch (error: any) {

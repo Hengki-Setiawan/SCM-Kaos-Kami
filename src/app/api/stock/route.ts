@@ -2,9 +2,13 @@ import { NextResponse } from 'next/server';
 import { db } from '@/db';
 import { products, categories } from '@/db/schema';
 import { eq } from 'drizzle-orm';
+import { requireRole } from '@/lib/rbac';
 
 export async function GET() {
   try {
+    const roleCheck = await requireRole(['admin', 'manager', 'staff']);
+    if (roleCheck) return roleCheck;
+
     const allProducts = await db.select({
       id: products.id,
       categoryId: products.categoryId,

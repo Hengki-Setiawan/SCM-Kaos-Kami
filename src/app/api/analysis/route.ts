@@ -4,13 +4,18 @@ import { db } from '@/db';
 import { products, stockMovements } from '@/db/schema';
 import { desc } from 'drizzle-orm';
 
+import { pipeline } from '@/lib/ai-collab';
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 });
 
 import { checkRateLimit } from '@/lib/rate-limiter';
+import { requireRole } from '@/lib/rbac';
 
 export async function GET(req: Request) {
+  const roleCheck = await requireRole(['admin', 'manager', 'staff']);
+  if (roleCheck) return roleCheck;
+
   const ip = req.headers.get('x-forwarded-for') || 'anonymous';
   const { allowed } = checkRateLimit(`analysis:${ip}`, 5, 60000);
   if (!allowed) return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
@@ -45,7 +50,7 @@ export async function GET(req: Request) {
 
       if (p.currentStock === 0) {
         outOfStockItems.push(p.name);
-      } else if (p.currentStock <= p.minStock) {
+      } else if (p.currentStock < p.minStock) {
         lowStockItems.push(`${p.name} (Sisa: ${p.currentStock})`);
       }
     }
@@ -76,14 +81,14 @@ export async function GET(req: Request) {
       ${JSON.stringify(dataSnapshot)}
     `;
 
-    const completion = await groq.chat.completions.create({
-      messages: [{ role: 'system', content: systemPrompt }],
-      model: 'llama-3.1-8b-instant',
-      temperature: 0.3,
-      response_format: { type: 'json_object' }
+    const { content } = await pipeline({
+      userMessage: 'Berikan analisis kesehatan stok gudang berdasarkan data.',
+      systemPrompt: systemPrompt,
+      dbData: dataSnapshot,
+      isJson: true
     });
 
-    const parsedData = JSON.parse(completion.choices[0]?.message?.content || '{}');
+    const parsedData = JSON.parse(content || '{}');
 
     return NextResponse.json({ success: true, analysis: parsedData });
 

@@ -2,10 +2,13 @@ import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 
 const secretKey = process.env.JWT_SECRET;
-if (!secretKey && process.env.NODE_ENV === 'production') {
-  console.error('CRITICAL: JWT_SECRET tidak terkonfigurasi di Vercel/Production Environment! Login akan ditolak.');
+if (!secretKey) {
+  console.warn('⚠️ WARNING: JWT_SECRET tidak terkonfigurasi! Menggunakan random secret sementara untuk sesi ini.');
 }
-const key = new TextEncoder().encode(secretKey || 'kaos-kami-super-secret-12345');
+
+// Gunakan secret dari ENV, atau generate string acak unik untuk setiap jalannya server
+const fallbackSecret = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+const key = new TextEncoder().encode(secretKey || fallbackSecret);
 
 export async function encrypt(payload: any) {
   if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {

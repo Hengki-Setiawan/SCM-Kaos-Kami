@@ -9,7 +9,7 @@ export async function GET() {
     const stats = await db.select({
       totalProducts: sql<number>`count(${products.id})`,
       totalStock: sql<number>`coalesce(sum(${products.currentStock}), 0)`,
-      lowStockItems: sql<number>`count(case when ${products.currentStock} <= ${products.minStock} and not (${products.currentStock} = 0 and ${products.minStock} = 0) then 1 end)`,
+      lowStockItems: sql<number>`count(case when ${products.currentStock} < ${products.minStock} and not (${products.currentStock} = 0 and ${products.minStock} = 0) then 1 end)`,
       totalValue: sql<number>`coalesce(sum(${products.currentStock} * ${products.buyPrice}), 0)`
     }).from(products);
 
@@ -58,7 +58,7 @@ export async function GET() {
       currentStock: products.currentStock,
       minStock: products.minStock
     }).from(products)
-    .where(sql`${products.currentStock} <= ${products.minStock} and not (${products.currentStock} = 0 and ${products.minStock} = 0)`)
+    .where(sql`${products.currentStock} < ${products.minStock} and not (${products.currentStock} = 0 and ${products.minStock} = 0)`)
     .limit(8);
 
     const revenue = financialStats[0].grossRevenue || 0;

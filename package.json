@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@ducanh2912/next-pwa": "^10.2.9",
+    "@google/genai": "^1.46.0",
     "@libsql/client": "^0.15.8",
     "cloudinary": "^2.6.1",
     "drizzle-orm": "^0.44.2",
@@ -21,9 +22,9 @@
     "jose": "^6.2.2",
     "lucide-react": "^0.577.0",
     "next": "16.2.0",
-
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "react-markdown": "^10.1.0",
     "swr": "^2.4.1",
     "uuid": "^11.1.0",
     "zod": "^4.3.6"
@@ -31,6 +32,7 @@
   "devDependencies": {
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.2",
+    "@types/jest": "^30.0.0",
     "@types/node": "^20.19.37",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19",
@@ -39,8 +41,10 @@
     "drizzle-kit": "^0.31.10",
     "eslint": "^9",
     "eslint-config-next": "16.2.0",
+    "jest": "^30.3.0",
     "jsdom": "^29.0.1",
     "sharp": "^0.34.5",
+    "ts-jest": "^29.4.6",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vitest": "^4.1.0"

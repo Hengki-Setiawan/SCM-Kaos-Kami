@@ -1,10 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Loader2, AlertTriangle, Package } from 'lucide-react';
 
 export default function AnalysisPage() {
+  const [activeTab, setActiveTab] = useState<'overview' | 'low-stock'>('overview');
   const [analysis, setAnalysis] = useState<any>(null);
   const [predictions, setPredictions] = useState<any[]>([]);
+  const [lowStockItems, setLowStockItems] = useState<any[]>([]);
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isPredicting, setIsPredicting] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -41,9 +46,38 @@ export default function AnalysisPage() {
       }
     }
 
+    async function fetchLowStock() {
+      try {
+        const res = await fetch('/api/stock/low-stock');
+        const data = await res.json();
+        if (data.success) setLowStockItems(data.items);
+      } catch (err) {
+        console.error('Failed to fetch low stock', err);
+      }
+    }
+
     fetchAnalysis();
     fetchPredictions();
+    fetchLowStock();
   }, []);
+
+  const generateAISummary = async () => {
+    setIsGeneratingSummary(true);
+    try {
+      const res = await fetch('/api/stock/low-stock/ai-summary');
+      const data = await res.json();
+      if (data.success) {
+        setAiSummary(data.summary);
+      } else {
+        alert('Gagal membuat rekomendasi AI: ' + data.error);
+      }
+    } catch (error) {
+      console.error(error);
+      alert('Terjadi kesalahan saat memanggil AI.');
+    } finally {
+      setIsGeneratingSummary(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -76,8 +110,24 @@ export default function AnalysisPage() {
         <p className="text-muted">Laporan instan berdasarkan kondisi stok SCM Kaos Kami saat ini.</p>
       </div>
 
-      {analysis && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="flex gap-4 border-b border-[rgba(var(--border),0.5)] mb-4 overflow-x-auto custom-scrollbar">
+        <button 
+          onClick={() => setActiveTab('overview')}
+          className={`pb-2 px-4 transition-colors whitespace-nowrap ${activeTab === 'overview' ? 'border-b-2 border-[rgb(var(--primary))] text-[rgb(var(--primary))] font-bold' : 'text-muted hover:text-[rgb(var(--foreground))]'}`}
+        >
+          Overview (BI Analisis)
+        </button>
+        <button 
+          onClick={() => setActiveTab('low-stock')}
+          className={`pb-2 px-4 transition-colors whitespace-nowrap flex items-center gap-2 ${activeTab === 'low-stock' ? 'border-b-2 border-[rgb(var(--danger))] text-[rgb(var(--danger))] font-bold' : 'text-muted hover:text-[rgb(var(--foreground))]'}`}
+        >
+          Low Stock Deficit
+          <span className="bg-[rgba(var(--danger),0.1)] text-[rgb(var(--danger))] py-0.5 px-2 rounded-full text-xs font-bold">{lowStockItems.length}</span>
+        </button>
+      </div>
+
+      {analysis && activeTab === 'overview' && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in zoom-in duration-300">
           
           {/* Main Score Card */}
           <div className="glass-card flex flex-col items-center justify-center text-center p-8 md:col-span-1">
@@ -176,6 +226,74 @@ export default function AnalysisPage() {
                 </table>
               </div>
             ) : null}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'low-stock' && (
+        <div className="flex flex-col gap-6 animate-in fade-in zoom-in duration-300">
+          <div className="glass-card flex flex-col gap-4 border-t-4 border-t-[rgb(var(--danger))]">
+            <div className="flex justify-between items-center flex-wrap gap-4">
+              <div>
+                <h3 className="text-[rgb(var(--danger))] flex items-center gap-2">
+                  <AlertTriangle size={20} /> Daftar Stok Menipis
+                </h3>
+                <p className="text-sm text-muted">Produk yang jumlah stoknya berada di bawah batas minimum.</p>
+              </div>
+              <button 
+                onClick={generateAISummary} 
+                disabled={isGeneratingSummary || lowStockItems.length === 0}
+                className="btn btn-primary flex items-center gap-2"
+              >
+                {isGeneratingSummary ? <Loader2 size={16} className="animate-spin" /> : '🤖'} 
+                {isGeneratingSummary ? 'AI sedang menyusun strategi...' : `Generate AI Restock Advisor (${lowStockItems.length} item)`}
+              </button>
+            </div>
+
+            {aiSummary && (
+              <div className="mt-4 p-5 rounded-xl bg-[rgba(var(--primary),0.05)] border border-[rgba(var(--primary),0.2)]">
+                <h4 className="flex items-center gap-2 text-[rgb(var(--primary))] mb-4 border-b border-[rgba(var(--primary),0.2)] pb-2">
+                  <Package size={18} /> AI Restock Executive Summary
+                </h4>
+                <div 
+                  className="prose prose-sm dark:prose-invert max-w-none text-sm leading-loose"
+                  dangerouslySetInnerHTML={{ __html: aiSummary }}
+                />
+              </div>
+            )}
+
+            {lowStockItems.length === 0 ? (
+              <p className="text-center text-muted p-8 border border-dashed border-[rgba(var(--border),0.5)] rounded-xl mt-4">Gudang sangat aman. Tidak ada produk di bawah batas minimum.</p>
+            ) : (
+              <div className="overflow-x-auto mt-4 custom-scrollbar">
+                <table className="w-full text-left border-collapse text-sm whitespace-nowrap">
+                  <thead>
+                    <tr className="bg-[rgba(var(--surface-hover),0.5)]">
+                      <th className="p-3 border-b border-[rgba(var(--border),0.5)]">SKU</th>
+                      <th className="p-3 border-b border-[rgba(var(--border),0.5)]">Nama Produk</th>
+                      <th className="p-3 border-b border-[rgba(var(--border),0.5)]">Kategori</th>
+                      <th className="p-3 text-center border-b border-[rgba(var(--border),0.5)]">Stok</th>
+                      <th className="p-3 text-center border-b border-[rgba(var(--border),0.5)]">Min</th>
+                      <th className="p-3 text-center border-b border-[rgba(var(--border),0.5)]">Defisit</th>
+                      <th className="p-3 text-right border-b border-[rgba(var(--border),0.5)]">Harga (Est)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {lowStockItems.map((item) => (
+                      <tr key={item.id} className="border-b border-[rgba(var(--border),0.2)] hover:bg-[rgba(var(--surface-hover),0.3)] transition-colors">
+                        <td className="p-3 font-mono text-[rgb(var(--primary))]">{item.sku}</td>
+                        <td className="p-3 font-medium">{item.name}</td>
+                        <td className="p-3 text-muted">{item.categoryName || '-'}</td>
+                        <td className="p-3 text-center font-bold text-[rgb(var(--danger))]">{item.currentStock}</td>
+                        <td className="p-3 text-center">{item.minStock}</td>
+                        <td className="p-3 text-center text-[rgb(var(--warning))] font-bold">{item.minStock - item.currentStock}</td>
+                        <td className="p-3 text-right">Rp {Intl.NumberFormat('id-ID').format(item.costPrice || 0)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       )}

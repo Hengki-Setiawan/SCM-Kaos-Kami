@@ -4,6 +4,8 @@ import { db } from '@/db';
 import { priceReferences } from '@/db/schema';
 import { v4 as uuidv4 } from 'uuid';
 
+import { pipeline } from '@/lib/ai-collab';
+
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 });
@@ -11,6 +13,10 @@ const groq = new Groq({
 import { checkRateLimit } from '@/lib/rate-limiter';
 
 export async function POST(req: Request) {
+  const { requireRole } = await import('@/lib/rbac');
+  const roleCheck = await requireRole(['admin', 'manager', 'staff']);
+  if (roleCheck) return roleCheck;
+
   const ip = req.headers.get('x-forwarded-for') || 'anonymous';
   const { allowed } = checkRateLimit(`calc:${ip}`, 20, 60000);
   if (!allowed) return NextResponse.json({ error: 'Terlalu banyak request.' }, { status: 429 });
@@ -48,14 +54,13 @@ export async function POST(req: Request) {
       Pesan User: "${input}"
     `;
 
-    const completion = await groq.chat.completions.create({
-      messages: [{ role: 'system', content: systemPrompt }],
-      model: 'llama-3.1-8b-instant',
-      temperature: 0.1,
-      response_format: { type: 'json_object' }
+    const { content } = await pipeline({
+      userMessage: input,
+      systemPrompt: systemPrompt,
+      isJson: true
     });
 
-    const parsedData = JSON.parse(completion.choices[0]?.message?.content || '{}');
+    const parsedData = JSON.parse(content || '{}');
 
     // Simpan ke database price_references
     if (parsedData.totalPrice && parsedData.quantity && parsedData.parsedUnitPrice) {

@@ -2,9 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/db';
 import { stockMovements, products } from '@/db/schema';
 import { sql } from 'drizzle-orm';
-import Groq from 'groq-sdk';
-
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+import { cascadeChat } from '@/lib/groq-cascade';
 
 export async function GET() {
   try {
@@ -63,9 +61,9 @@ KEMBALIKAN HANYA ARRAY JSON VALID TANPA MARKDOWN atau penjelasan apapun. Format 
   { "id": "string", "name": "string", "velocityPerDay": number, "estimatedDaysLeft": number, "recommendation": "string" }
 ]`;
 
-    const chatCompletion = await groq.chat.completions.create({
+    const { result: chatCompletion } = await cascadeChat({
       messages: [{ role: 'user', content: prompt }],
-      model: 'llama-3.1-8b-instant',
+      type: 'fast',
       temperature: 0.1,
     });
 

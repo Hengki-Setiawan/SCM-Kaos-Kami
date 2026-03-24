@@ -166,3 +166,21 @@ export const telegramSessions = sqliteTable('telegram_sessions', {
   data: text('data').notNull(),
   updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull()
 });
+
+export const aiTelemetry = sqliteTable('ai_telemetry', {
+  id: text('id').primaryKey(),
+  provider: text('provider').notNull(),
+  model: text('model').notNull(),
+  latencyMs: integer('latency_ms').notNull(),
+  isSuccess: integer('is_success', { mode: 'boolean' }).notNull(),
+  errorMessage: text('error_message'),
+  taskType: text('task_type').notNull(),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull()
+});
+
+export const aiCache = sqliteTable('ai_cache', {
+  id: text('id').primaryKey(),
+  messagesHash: text('messages_hash').notNull().unique(),
+  response: text('response').notNull(),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull()
+});
