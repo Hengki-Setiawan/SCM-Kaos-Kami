@@ -985,8 +985,10 @@ bot.on('message:text', async (ctx) => {
     }).slice(0, 15);
 
     const systemPrompt = `Anda adalah "Kaos Kami Bot" di Telegram. Jawab SINGKAT. 
-    Total Varian: ${allProducts.length}
-    Stok Rendah (< Minimal): ${allProducts.filter((p: any) => p.currentStock <= p.minStock).map((p: any) => `${p.name} (${p.currentStock}/${p.minStock})`).join(', ') || 'Semua Aman'}
+    DATA GUDANG (Bird's Eye):
+    - Total Varian: ${allProducts.length}
+    - Total Nilai Aset: Rp${new Intl.NumberFormat('id-ID').format(allProducts.reduce((acc, p) => acc + (p.currentStock * (p.buyPrice || 0)), 0))}
+    - Stok Rendah (< Minimal): ${allProducts.filter((p: any) => p.currentStock <= p.minStock).length} varian
     
     DATA PRODUK BERKAITAN:
     ${matchedProductsForAI.map((p: any) => `- [${p.sku}] ${p.name}: Stok=${p.currentStock}, Min=${p.minStock}`).join('\n') || 'Tidak ada produk spesifik disebutkan.'}

@@ -162,14 +162,14 @@ export async function POST(req: Request) {
       Anda pintar menghitung Harga Pokok Penjualan (HPP) / Profit margin, membaca daftar array context, dan menganalisis data tren Business Intelligence.
       Gunakan bahasa Indonesia yang santai, terstruktur rapi dengan format Markdown murni (**tebal**, *miring*, list, tabel, dll) agar mudah dibaca. JANGAN SAYA/AKU, panggil diri Anda "AI Assistant" atau "Bot SCM".
       
-      DATA GUDANG TERKINI:
+      DATA GUDANG TERKINI (Bird's Eye View):
       - Total Varian Produk: ${allProducts.length}
+      - Total Kategori: ${allCategories.length}
+      - Total Nilai Aset (Stok * Harga Beli): Rp${new Intl.NumberFormat('id-ID').format(allProducts.reduce((acc, p) => acc + (p.currentStock * (p.buyPrice || 0)), 0))}
+      - Jumlah Produk Stok Rendah: ${allProducts.filter(p => p.currentStock <= p.minStock).length} varian
       - Produk Stok Rendah (< Minimal): ${allProducts.filter(p => p.currentStock <= p.minStock).map(p => `${p.name} (Sisa ${p.currentStock}/${p.minStock})`).join(', ') || 'Semua Aman'}
-      - Top Seller Mingguan: ${trendAnalysis.topSellers.map(t => t.name).join(', ')}
-      - Produk Sedang Naik Tren: ${trendAnalysis.rising.map(t => t.name).join(', ')}
-      - Produk Sedang Turun Tren: ${trendAnalysis.falling.map(t => t.name).join(', ')}
       
-      PENCOCOKAN PRODUK (Dari Pesan User):
+      DATA PRODUK TERKAIT (Filtered Context):
       ${(() => {
         const msgLower = message.toLowerCase();
         const matched = allProducts.filter(p => {
@@ -179,18 +179,17 @@ export async function POST(req: Request) {
           const catMatch = cat && (cat.name.toLowerCase().includes(msgLower) || msgLower.includes(cat.name.toLowerCase()));
           return nameMatch || skuMatch || catMatch;
         }).slice(0, 15);
-        return matched.map(p => `- [${p.sku}] ${p.name}: Stok=${p.currentStock}, Min=${p.minStock}`).join('\n') || 'Tidak ada produk spesifik disebutkan.';
+        return matched.map(p => `- [${p.sku}] ${p.name}: Stok=${p.currentStock}, Min=${p.minStock}, HargaBeli=${p.buyPrice}, HargaJual=${p.unitPrice}`).join('\n') || 'Tidak ada produk spesifik disebutkan.';
       })()}
-      
-      PESANAN TERAKHIR:
-      ${JSON.stringify(recentOrders)}
+
+      TREND & SALES ANALYSIS:
+      - Top Seller: ${trendAnalysis.topSellers.map(t => t.name).join(', ')}
+      - Rising Trends: ${trendAnalysis.rising.map(t => t.name).join(', ')}
       
       Aturan Menjawab:
-      1. Jika user bertanya "Prediksi habis" atau "Tren", jawablah dengan wawasan Business Intelligence di atas.
-      2. Jika user meminta "Kalkulator HPP" atau minta dihitungkan "margin 30%", BERIKAN RUMUS HITUNGAN PASTI! (Harga Beli + (Harga Beli * margin)). Harga Beli / Unit Price ada di DB tapi asumsikan secara umum jika tidak detail.
-      3. Jika user merujuk "barang ke-2" atau referensi berurutan, selidiki Array KONTEKS untuk mencari pesan sebelumnya.
-      4. Jangan membuat-buat detail stok secara persis jika angkanya meragukan, tapi Anda BOLEH memberitahu ringkasan kasarnya.
-      5. Peringatkan user jika tren penjualan suatu barang sedang jatuh (falling).
+      1. Jika user bertanya tentang "Aset", "Total nilai", atau "Kesehatan gudang", gunakan data Bird's Eye View di atas.
+      2. Jangan membuat-buat detail stok secara persis jika angkanya meragukan, tapi Anda WAJIB memberitahu ringkasan kasarnya.
+      3. Selalu ingatkan user jika ada barang yang "Stok Rendah".
     `;
 
     const { content, mode } = await pipeline({
