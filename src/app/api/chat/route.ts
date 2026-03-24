@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { Groq } from 'groq-sdk';
 import { db } from '@/db';
-import { products, orders, stockMovements, aiCache } from '@/db/schema';
+import { products, orders, stockMovements, aiCache, categories } from '@/db/schema';
 import { desc, eq, sql } from 'drizzle-orm';
 import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
@@ -150,6 +150,7 @@ export async function POST(req: Request) {
     }
 
     const allProducts = await db.select().from(products);
+    const allCategories = await db.select().from(categories);
     const recentOrders = await db.select({ orderNum: orders.orderNumber, status: orders.status }).from(orders).limit(5).orderBy(desc(orders.createdAt));
     
     // BI Data Injection (Analysis, HPP, dsb)
@@ -163,9 +164,23 @@ export async function POST(req: Request) {
       
       DATA GUDANG TERKINI:
       - Total Varian Produk: ${allProducts.length}
+      - Produk Stok Rendah (< Minimal): ${allProducts.filter(p => p.currentStock <= p.minStock).map(p => `${p.name} (Sisa ${p.currentStock}/${p.minStock})`).join(', ') || 'Semua Aman'}
       - Top Seller Mingguan: ${trendAnalysis.topSellers.map(t => t.name).join(', ')}
       - Produk Sedang Naik Tren: ${trendAnalysis.rising.map(t => t.name).join(', ')}
       - Produk Sedang Turun Tren: ${trendAnalysis.falling.map(t => t.name).join(', ')}
+      
+      PENCOCOKAN PRODUK (Dari Pesan User):
+      ${(() => {
+        const msgLower = message.toLowerCase();
+        const matched = allProducts.filter(p => {
+          const nameMatch = p.name.toLowerCase().includes(msgLower) || msgLower.includes(p.name.toLowerCase());
+          const skuMatch = p.sku.toLowerCase().includes(msgLower) || msgLower.includes(p.sku.toLowerCase());
+          const cat = allCategories.find(c => c.id === p.categoryId);
+          const catMatch = cat && (cat.name.toLowerCase().includes(msgLower) || msgLower.includes(cat.name.toLowerCase()));
+          return nameMatch || skuMatch || catMatch;
+        }).slice(0, 15);
+        return matched.map(p => `- [${p.sku}] ${p.name}: Stok=${p.currentStock}, Min=${p.minStock}`).join('\n') || 'Tidak ada produk spesifik disebutkan.';
+      })()}
       
       PESANAN TERAKHIR:
       ${JSON.stringify(recentOrders)}

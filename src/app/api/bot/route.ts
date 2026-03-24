@@ -972,11 +972,26 @@ bot.on('message:text', async (ctx) => {
     }
 
     // 2. Jika bukan aksi, jawab sebagai AI Chat (ringkas)
-    const allStockData = await db.select({
-      name: products.name, stock: products.currentStock
-    }).from(products);
+    const allProducts = await db.select().from(products);
+    const allCategories = await db.select().from(categories);
 
-    const systemPrompt = `Anda adalah "Kaos Kami Bot" di Telegram. Jawab SINGKAT. PENTING: Anda HANYA MENJAWAB pertanyaan stok atau ngobrol. Anda TIDAK BISA menambah/menghapus barang. Jika user ingin menambah barang, beri tahu mereka gunakan kalimat perintah jelas seperti "tambah produk [nama]". List stok: ${JSON.stringify(allStockData)}`;
+    const matchedProductsForAI = allProducts.filter((p: any) => {
+      const msgLower = text.toLowerCase();
+      const nameMatch = p.name.toLowerCase().includes(msgLower) || msgLower.includes(p.name.toLowerCase());
+      const skuMatch = p.sku.toLowerCase().includes(msgLower) || msgLower.includes(p.sku.toLowerCase());
+      const cat = allCategories.find(c => c.id === p.categoryId);
+      const catMatch = cat && (cat.name.toLowerCase().includes(msgLower) || msgLower.includes(cat.name.toLowerCase()));
+      return nameMatch || skuMatch || catMatch;
+    }).slice(0, 15);
+
+    const systemPrompt = `Anda adalah "Kaos Kami Bot" di Telegram. Jawab SINGKAT. 
+    Total Varian: ${allProducts.length}
+    Stok Rendah (< Minimal): ${allProducts.filter((p: any) => p.currentStock <= p.minStock).map((p: any) => `${p.name} (${p.currentStock}/${p.minStock})`).join(', ') || 'Semua Aman'}
+    
+    DATA PRODUK BERKAITAN:
+    ${matchedProductsForAI.map((p: any) => `- [${p.sku}] ${p.name}: Stok=${p.currentStock}, Min=${p.minStock}`).join('\n') || 'Tidak ada produk spesifik disebutkan.'}
+
+    PENTING: Anda HANYA MENJAWAB pertanyaan stok atau ngobrol. Anda TIDAK BISA menambah/menghapus barang via chat ini.`;
     
     const { content } = await pipeline({
       userMessage: ctx.message?.text || 'Minta bantuan bot',
