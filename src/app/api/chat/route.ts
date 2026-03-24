@@ -166,8 +166,8 @@ export async function POST(req: Request) {
       - Total Varian Produk: ${allProducts.length}
       - Total Kategori: ${allCategories.length}
       - Total Nilai Aset (Stok * Harga Beli): Rp${new Intl.NumberFormat('id-ID').format(allProducts.reduce((acc, p) => acc + (p.currentStock * (p.buyPrice || 0)), 0))}
-      - Jumlah Produk Stok Rendah: ${allProducts.filter(p => p.currentStock <= p.minStock).length} varian
-      - Produk Stok Rendah (< Minimal): ${allProducts.filter(p => p.currentStock <= p.minStock).map(p => `${p.name} (Sisa ${p.currentStock}/${p.minStock})`).join(', ') || 'Semua Aman'}
+      - Jumlah Produk Stok Rendah: ${allProducts.filter(p => p.currentStock < p.minStock).length} varian
+      - Produk Stok Rendah (< Minimal): ${allProducts.filter(p => p.currentStock < p.minStock).map(p => `${p.name} (Sisa ${p.currentStock}/${p.minStock})`).join(', ') || 'Semua Aman'}
       
       DATA PRODUK TERKAIT (Filtered Context):
       ${(() => {
@@ -188,8 +188,9 @@ export async function POST(req: Request) {
       
       Aturan Menjawab:
       1. Jika user bertanya tentang "Aset", "Total nilai", atau "Kesehatan gudang", gunakan data Bird's Eye View di atas.
-      2. Jangan membuat-buat detail stok secara persis jika angkanya meragukan, tapi Anda WAJIB memberitahu ringkasan kasarnya.
-      3. Selalu ingatkan user jika ada barang yang "Stok Rendah".
+      2. RUMUS RESTOCK: Untuk menghitung jumlah yang perlu ditambah, gunakan rumus (Minimal Stok - Stok Saat Ini). JANGAN menambah angka 1. Cukup sampai angka Minimal saja.
+      3. Jangan membuat-buat detail stok secara persis jika angkanya meragukan, tapi Anda WAJIB memberitahu ringkasan kasarnya.
+      4. Selalu ingatkan user jika ada barang yang "Stok Rendah" (Stok < Minimal).
     `;
 
     const { content, mode } = await pipeline({

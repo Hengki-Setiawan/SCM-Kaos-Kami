@@ -177,7 +177,7 @@ export default function StockTableClient({ initialProducts, categories }: { init
     group.variants.push(p);
     group.totalStock += p.currentStock;
     group.minStockSum += p.minStock;
-    if (p.currentStock <= p.minStock && !(p.currentStock === 0 && p.minStock === 0)) group.isLowStock = true;
+    if (p.currentStock < p.minStock && !(p.currentStock === 0 && p.minStock === 0)) group.isLowStock = true;
     
     return acc;
   }, []);

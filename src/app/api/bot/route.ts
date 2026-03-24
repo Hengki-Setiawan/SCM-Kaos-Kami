@@ -836,7 +836,7 @@ bot.on('message:text', async (ctx) => {
       let replyStr = `📦 *Cek Stok: ${keyword.toUpperCase()}*\n\n`;
       let totalStock = 0;
       for (const p of matchedProducts) {
-        let emoji = p.currentStock <= p.minStock ? '🔴' : '✅';
+        let emoji = p.currentStock < p.minStock ? '🔴' : '✅';
         replyStr += `${emoji} ${p.name}: *${p.currentStock}* ${p.unit}\n`;
         totalStock += p.currentStock;
       }
@@ -988,12 +988,13 @@ bot.on('message:text', async (ctx) => {
     DATA GUDANG (Bird's Eye):
     - Total Varian: ${allProducts.length}
     - Total Nilai Aset: Rp${new Intl.NumberFormat('id-ID').format(allProducts.reduce((acc, p) => acc + (p.currentStock * (p.buyPrice || 0)), 0))}
-    - Stok Rendah (< Minimal): ${allProducts.filter((p: any) => p.currentStock <= p.minStock).length} varian
+    - Stok Rendah (< Minimal): ${allProducts.filter((p: any) => p.currentStock < p.minStock).length} varian
     
     DATA PRODUK BERKAITAN:
     ${matchedProductsForAI.map((p: any) => `- [${p.sku}] ${p.name}: Stok=${p.currentStock}, Min=${p.minStock}`).join('\n') || 'Tidak ada produk spesifik disebutkan.'}
 
-    PENTING: Anda HANYA MENJAWAB pertanyaan stok atau ngobrol. Anda TIDAK BISA menambah/menghapus barang via chat ini.`;
+    PENTING: Anda HANYA MENJAWAB pertanyaan stok atau ngobrol. Anda TIDAK BISA menambah/menghapus barang via chat ini.
+    Aturan Tambah Stok: Jika menghitung kekurangan stok, gunakan target Pas di angka Minimal (Minimal - Stok Saat Ini). JANGAN menambah angka 1. Cukup target minimal saja.`;
     
     const { content } = await pipeline({
       userMessage: ctx.message?.text || 'Minta bantuan bot',
