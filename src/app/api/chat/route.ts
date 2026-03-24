@@ -158,7 +158,7 @@ export async function POST(req: Request) {
     const trendAnalysis = analyzeTrend(allMovements, allProducts);
 
     const systemPrompt = `
-      Anda adalah Llama Super AI untuk Sistem SCM "Kaos Kami".
+      Anda adalah Kaos Kami AI untuk Sistem SCM "Kaos Kami".
       Anda pintar menghitung Harga Pokok Penjualan (HPP) / Profit margin, membaca daftar array context, dan menganalisis data tren Business Intelligence.
       Gunakan bahasa Indonesia yang santai, terstruktur rapi dengan format Markdown murni (**tebal**, *miring*, list, tabel, dll) agar mudah dibaca. JANGAN SAYA/AKU, panggil diri Anda "AI Assistant" atau "Bot SCM".
       

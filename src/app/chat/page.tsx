@@ -237,7 +237,7 @@ export default function ChatPage() {
             <Bot size={24} />
           </div>
           <div>
-            <h1 className="text-xl font-bold">Llama AI Assistant</h1>
+            <h1 className="text-xl font-bold">Kaos Kami AI</h1>
             <p className="text-xs text-muted flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-success"></span> Online & Multimodal
             </p>
